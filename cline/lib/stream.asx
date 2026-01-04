@@ -8,6 +8,7 @@
 @import "asx://schema/mx2lm.stream.v1" as StreamSchema
 @import "asx://runtime/sse.v1" as SSE
 @import "asx://runtime/http.v1" as HTTP
+@import "./cline-import.asx" as ClineLib  /* Auto-fetch JAR if missing */
 
 /* --------------------------------------------------------
    HTTP Headers Configuration

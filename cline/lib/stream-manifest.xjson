@@ -25,7 +25,9 @@
     },
     "library": {
       "@jar": "cline-1.0.9.jar",
-      "@description": "Cline library for Java/JVM integration"
+      "@import_trigger": "cline-import.asx",
+      "@fetch_script": "fetch-cline-lib.sh",
+      "@description": "Cline library for Java/JVM integration (auto-fetched on import)"
     }
   },
 
