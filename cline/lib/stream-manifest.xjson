@@ -39,6 +39,12 @@
       "@emit_directives": "kuhul-emit.asx",
       "@phases": "kuhul-phases.xjson",
       "@description": "K'UHUL spatial computing - SVG as ABI for Java→K'UHUL bridge"
+    },
+    "kuhul_bridge": {
+      "@svg3d_bridge": "kuhul-svg3d-bridge.xjson",
+      "@ggl_schema": "kuhul-ggl.xjson",
+      "@bridge_runtime": "kuhul-bridge.asx",
+      "@description": "K'UHUL SVG-3D ↔ GGL Bridge - Bidirectional geometric language interop"
     }
   },
 
