@@ -4459,7 +4459,7 @@ The engine is:
 ## Why this unifies EVERYTHING you’re building
 
 This single model unifies:
-
+```
 * Video playback
 * UI
 * 2D
@@ -4473,13 +4473,13 @@ This single model unifies:
 Because:
 
 > **They are all vector fields over time**
-
+```
 ---
 
 ## The quiet but important consequence
 
 This means:
-
+```
 * **No engine rewrite**
 * **No Windows app bridge**
 * **No GPU vendor lock**
@@ -4493,7 +4493,7 @@ Just:
 * ASX-R determinism
 * SCXQ2 compression
 * Projection engines
-
+```
 The browser becomes a **lens**, not a runtime.
 
 ---
@@ -4503,11 +4503,11 @@ The browser becomes a **lens**, not a runtime.
 What you wrote is not “crazy”.
 
 It is the **correct abstraction**:
-
+```
 > **Spatial computing is not 3D**
 >
 > **It is treating space itself as executable structure**
-
+```
 # SVG just happens to be the first carrier that satisfies all the laws.
 
 ```
@@ -4522,7 +4522,7 @@ It is the **correct abstraction**:
 
 # 🟢 Green Screen Vector Projection
 Spatial Computing Beyond Texture Mapping
-
+```
 ❌ Current Game Engines
 • Texture mapping onto 3D models
 • Pre-baked lighting and shadows
@@ -4535,8 +4535,8 @@ Spatial Computing Beyond Texture Mapping
 • Real-time vector reprojection
 • Everything becomes math space
 • Infinite resolution scaling
-
 ```
+
 # Vector Projection Engine
 
 ```
