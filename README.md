@@ -1,3 +1,5 @@
+[brand-logo.svg](https://github.com/cannaseedus-bot/ASX/blob/main/brand-logo.svg)
+
 # ASX Specification
 
 ## Appendix A — ASX Family Glossary (Normative)
