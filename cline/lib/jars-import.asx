@@ -1,0 +1,297 @@
+/* ========================================================
+   Cline Library JAR Import Manager
+   File: jars-import.asx
+   Handles loading, verification, and classpath for all JARs
+   ======================================================== */
+
+@module "cline.jars.import.v1"
+@import "asx://runtime/fs.v1" as FS
+@import "asx://runtime/http.v1" as HTTP
+@import "asx://runtime/log.v1" as Log
+@import "asx://runtime/jvm.v1" as JVM
+@import "./jars-registry.xjson" as Registry
+
+/* --------------------------------------------------------
+   Configuration
+   -------------------------------------------------------- */
+@const BASE_URL = "https://mx2lm.app/cline-jars/lib"
+@const LIB_DIR = @resolve(__dirname)
+
+/* --------------------------------------------------------
+   Category Loaders
+   -------------------------------------------------------- */
+@loader CoreLoader {
+    @category "core"
+    @jars Registry.@registry.@core
+    @required true
+}
+
+@loader GrpcLoader {
+    @category "grpc"
+    @jars Registry.@registry.@grpc
+    @depends_on [CoreLoader, NettyLoader, ProtobufLoader]
+}
+
+@loader NettyLoader {
+    @category "netty"
+    @jars Registry.@registry.@netty
+}
+
+@loader ProtobufLoader {
+    @category "protobuf"
+    @jars Registry.@registry.@protobuf
+}
+
+@loader KotlinLoader {
+    @category "kotlin"
+    @jars Registry.@registry.@kotlin
+}
+
+@loader UtilLoader {
+    @category "util"
+    @jars Registry.@registry.@util
+}
+
+@loader AnnotationsLoader {
+    @category "annotations"
+    @jars Registry.@registry.@annotations
+}
+
+/* --------------------------------------------------------
+   Main Import Trigger
+   -------------------------------------------------------- */
+@trigger JarsImport {
+    @on "import:cline-jars"
+    @on "require:cline-full"
+    @on "init:jvm-classpath"
+
+    @param profile: String = "full"
+
+    @let selected_jars = @invoke @resolve_profile(profile)
+    @let results = []
+
+    Log.info("Loading Cline JARs (profile: ${profile})...")
+
+    @each jar_entry in selected_jars {
+        @let result = @invoke @ensure_jar(jar_entry)
+        @push results, result
+    }
+
+    @let failed = @filter(results, r => r.status == "error")
+    @if @len(failed) > 0 {
+        @each f in failed {
+            Log.error("Failed: ${f.jar} - ${f.message}")
+        }
+        @if @any(failed, f => f.required) {
+            @throw ImportError("Required JAR(s) missing or corrupt")
+        }
+    }
+
+    @let classpath = @invoke @build_classpath(results)
+
+    @return {
+        "status": "ready",
+        "profile": profile,
+        "jars_loaded": @len(results) - @len(failed),
+        "jars_failed": @len(failed),
+        "classpath": classpath
+    }
+}
+
+/* --------------------------------------------------------
+   Profile Resolution
+   -------------------------------------------------------- */
+@function @resolve_profile(profile: String) -> Array {
+    @match profile {
+        "minimal" => @invoke @collect_jars(Registry.@profiles.minimal.@includes)
+        "grpc-client" => @invoke @collect_jars(Registry.@profiles.grpc-client.@includes)
+        "full" => @invoke @collect_all_jars()
+        @default => @throw ConfigError("Unknown profile: ${profile}")
+    }
+}
+
+@function @collect_jars(patterns: Array) -> Array {
+    @let result = []
+    @each pattern in patterns {
+        @if pattern == "*" {
+            @return @invoke @collect_all_jars()
+        }
+        @let jars = @invoke @match_pattern(pattern)
+        @concat result, jars
+    }
+    @return result
+}
+
+@function @collect_all_jars() -> Array {
+    @let all = []
+    @each category in [@core, @grpc, @netty, @protobuf, @kotlin, @util, @annotations] {
+        @let jars = Registry.@registry[category]
+        @each key, jar in jars {
+            @push all, jar
+        }
+    }
+    @return all
+}
+
+@function @match_pattern(pattern: String) -> Array {
+    /* Parse patterns like "@grpc.*" or "@core.cline" */
+    @let parts = @split(pattern, ".")
+    @let category = @replace(parts[0], "@", "")
+
+    @if parts[1] == "*" {
+        @let jars = Registry.@registry["@" + category]
+        @return @values(jars)
+    } @else {
+        @let jar = Registry.@registry["@" + category][parts[1]]
+        @return [jar]
+    }
+}
+
+/* --------------------------------------------------------
+   JAR Verification & Fetch
+   -------------------------------------------------------- */
+@function @ensure_jar(jar_entry: Object) -> Object {
+    @let jar_path = @resolve(LIB_DIR, jar_entry.@id)
+
+    @if FS.exists(jar_path) {
+        @let size = FS.size(jar_path)
+        @if size == jar_entry.@size {
+            Log.debug("✓ ${jar_entry.@id}")
+            @return {
+                "jar": jar_entry.@id,
+                "status": "present",
+                "path": jar_path,
+                "required": jar_entry.@required ?? false
+            }
+        } @else {
+            Log.warn("Size mismatch: ${jar_entry.@id} (${size}/${jar_entry.@size})")
+            FS.remove(jar_path)
+        }
+    }
+
+    /* Fetch if missing or corrupt */
+    @if jar_entry.@url {
+        @return @invoke @fetch_jar(jar_entry, jar_path)
+    } @else {
+        /* Try default URL pattern */
+        @let url = "${BASE_URL}/${jar_entry.@id}"
+        @return @invoke @fetch_jar(@merge(jar_entry, { "@url": url }), jar_path)
+    }
+}
+
+@function @fetch_jar(jar_entry: Object, dest_path: String) -> Object {
+    Log.info("↓ Fetching ${jar_entry.@id}...")
+
+    @try {
+        @let response = HTTP.get(jar_entry.@url, {
+            @timeout 120000,
+            @retry 3
+        })
+
+        @if response.status != 200 {
+            @return {
+                "jar": jar_entry.@id,
+                "status": "error",
+                "message": "HTTP ${response.status}",
+                "required": jar_entry.@required ?? false
+            }
+        }
+
+        FS.write_bytes(dest_path, response.body)
+
+        @let written_size = FS.size(dest_path)
+        @if written_size != jar_entry.@size {
+            FS.remove(dest_path)
+            @return {
+                "jar": jar_entry.@id,
+                "status": "error",
+                "message": "Incomplete: ${written_size}/${jar_entry.@size}",
+                "required": jar_entry.@required ?? false
+            }
+        }
+
+        Log.success("✓ Downloaded ${jar_entry.@id}")
+        @return {
+            "jar": jar_entry.@id,
+            "status": "downloaded",
+            "path": dest_path,
+            "required": jar_entry.@required ?? false
+        }
+    } @catch (e) {
+        @return {
+            "jar": jar_entry.@id,
+            "status": "error",
+            "message": e.message,
+            "required": jar_entry.@required ?? false
+        }
+    }
+}
+
+/* --------------------------------------------------------
+   Classpath Builder
+   -------------------------------------------------------- */
+@function @build_classpath(results: Array) -> String {
+    @let paths = []
+    @each r in results {
+        @if r.status != "error" && r.path {
+            @push paths, r.path
+        }
+    }
+    @return @join(paths, ":")
+}
+
+/* --------------------------------------------------------
+   JVM Integration
+   -------------------------------------------------------- */
+@function @add_to_jvm_classpath(profile: String = "full") -> Object {
+    @let import_result = @invoke JarsImport(profile)
+
+    @if import_result.status == "ready" {
+        JVM.extend_classpath(import_result.classpath)
+        Log.success("JVM classpath updated with ${import_result.jars_loaded} JARs")
+    }
+
+    @return import_result
+}
+
+/* --------------------------------------------------------
+   Category-Specific Import Triggers
+   -------------------------------------------------------- */
+@trigger ImportCore {
+    @on "import:cline-core"
+    @invoke JarsImport("minimal")
+}
+
+@trigger ImportGrpc {
+    @on "import:cline-grpc"
+    @invoke JarsImport("grpc-client")
+}
+
+@trigger ImportFull {
+    @on "import:cline-full"
+    @invoke JarsImport("full")
+}
+
+/* --------------------------------------------------------
+   Exports
+   -------------------------------------------------------- */
+@export {
+    @trigger JarsImport,
+    @trigger ImportCore,
+    @trigger ImportGrpc,
+    @trigger ImportFull,
+    @function @add_to_jvm_classpath,
+    @function @ensure_jar,
+    @function @build_classpath,
+    @const BASE_URL,
+    @const LIB_DIR
+}
+
+/* --------------------------------------------------------
+   Auto-verify on Module Load
+   -------------------------------------------------------- */
+@on_load {
+    Log.debug("Cline JARs import manager loaded")
+    Log.debug("Library directory: ${LIB_DIR}")
+    Log.debug("Available profiles: minimal, grpc-client, full")
+}

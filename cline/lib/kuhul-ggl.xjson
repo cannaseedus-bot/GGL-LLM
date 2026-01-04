@@ -1,0 +1,308 @@
+{
+  "$schema": "xjson://schema/core/v1",
+  "@id": "asx://schema/kuhul.ggl.v1",
+  "@type": "schema",
+  "@version": "1.0.0",
+  "@status": "frozen",
+  "@description": "Geometric Glyph Language (GGL) - Declarative geometric programming with symbolic glyphs",
+
+  "@philosophy": {
+    "@principle": "Geometry through composition of symbolic glyphs",
+    "@paradigm": "declarative",
+    "@execution": "lazy evaluation with visualization"
+  },
+
+  "@glyphs": {
+    "@primitives": {
+      "◯": {
+        "@id": "ggl://glyph/circle",
+        "@name": "Circle",
+        "@3d": "Sphere",
+        "@params": {
+          "r": { "@type": "number", "@default": 1, "@description": "radius" },
+          "cx": { "@type": "number", "@default": 0, "@description": "center x" },
+          "cy": { "@type": "number", "@default": 0, "@description": "center y" },
+          "cz": { "@type": "number", "@default": 0, "@description": "center z (3D)" }
+        },
+        "@svg": "<circle cx=\"${cx}\" cy=\"${cy}\" r=\"${r}\"/>",
+        "@threejs": "new THREE.SphereGeometry(${r}, 32, 32)"
+      },
+      "□": {
+        "@id": "ggl://glyph/square",
+        "@name": "Square",
+        "@3d": "Cube",
+        "@params": {
+          "s": { "@type": "number", "@default": 1, "@description": "size" },
+          "x": { "@type": "number", "@default": 0, "@description": "position x" },
+          "y": { "@type": "number", "@default": 0, "@description": "position y" },
+          "z": { "@type": "number", "@default": 0, "@description": "position z (3D)" }
+        },
+        "@svg": "<rect x=\"${x}\" y=\"${y}\" width=\"${s}\" height=\"${s}\"/>",
+        "@threejs": "new THREE.BoxGeometry(${s}, ${s}, ${s})"
+      },
+      "△": {
+        "@id": "ggl://glyph/triangle",
+        "@name": "Triangle",
+        "@3d": "Tetrahedron",
+        "@params": {
+          "s": { "@type": "number", "@default": 1, "@description": "size" },
+          "x": { "@type": "number", "@default": 0 },
+          "y": { "@type": "number", "@default": 0 },
+          "z": { "@type": "number", "@default": 0 }
+        },
+        "@svg": "<polygon points=\"${x},${y-s} ${x-s},${y+s} ${x+s},${y+s}\"/>",
+        "@threejs": "new THREE.TetrahedronGeometry(${s})"
+      },
+      "◇": {
+        "@id": "ggl://glyph/diamond",
+        "@name": "Diamond",
+        "@3d": "Octahedron",
+        "@params": {
+          "s": { "@type": "number", "@default": 1 }
+        },
+        "@threejs": "new THREE.OctahedronGeometry(${s})"
+      },
+      "⬡": {
+        "@id": "ggl://glyph/hexagon",
+        "@name": "Hexagon",
+        "@3d": "Icosahedron",
+        "@params": {
+          "s": { "@type": "number", "@default": 1 }
+        },
+        "@threejs": "new THREE.IcosahedronGeometry(${s})"
+      },
+      "⬢": {
+        "@id": "ggl://glyph/filled-hexagon",
+        "@name": "FilledHexagon",
+        "@3d": "Dodecahedron",
+        "@params": {
+          "s": { "@type": "number", "@default": 1 }
+        },
+        "@threejs": "new THREE.DodecahedronGeometry(${s})"
+      }
+    },
+
+    "@boolean_operators": {
+      "⍯": {
+        "@id": "ggl://op/union",
+        "@name": "Union",
+        "@description": "Boolean union of shapes",
+        "@syntax": "A ⍯ B",
+        "@precedence": 5,
+        "@associativity": "left"
+      },
+      "⍰": {
+        "@id": "ggl://op/difference",
+        "@name": "Difference",
+        "@description": "Boolean difference (A minus B)",
+        "@syntax": "A ⍰ B",
+        "@precedence": 5,
+        "@associativity": "left"
+      },
+      "⍭": {
+        "@id": "ggl://op/intersection",
+        "@name": "Intersection",
+        "@description": "Boolean intersection",
+        "@syntax": "A ⍭ B",
+        "@precedence": 5,
+        "@associativity": "left"
+      }
+    },
+
+    "@array_operators": {
+      "⍸": {
+        "@id": "ggl://op/radial",
+        "@name": "RadialArray",
+        "@description": "Distribute copies radially",
+        "@syntax": "shape ⍸ count",
+        "@params": { "count": { "@type": "integer" } }
+      },
+      "⍼": {
+        "@id": "ggl://op/linear",
+        "@name": "LinearArray",
+        "@description": "Distribute copies linearly",
+        "@syntax": "shape ⍼ (count, spacing)",
+        "@params": {
+          "count": { "@type": "integer" },
+          "spacing": { "@type": "number" }
+        }
+      },
+      "⍻": {
+        "@id": "ggl://op/grid",
+        "@name": "GridArray",
+        "@description": "Distribute copies in grid",
+        "@syntax": "shape ⍻ (rows, cols)",
+        "@params": {
+          "rows": { "@type": "integer" },
+          "cols": { "@type": "integer" }
+        }
+      }
+    },
+
+    "@transform_operators": {
+      "↻": {
+        "@id": "ggl://op/rotate",
+        "@name": "Rotate",
+        "@description": "Rotate shape",
+        "@syntax": "shape ↻ angle",
+        "@params": { "angle": { "@type": "number", "@unit": "degrees" } }
+      },
+      "↔": {
+        "@id": "ggl://op/mirror",
+        "@name": "Mirror",
+        "@description": "Mirror shape across axis",
+        "@syntax": "shape ↔ axis",
+        "@params": { "axis": { "@type": "enum", "@values": ["x", "y", "z"] } }
+      },
+      "↕": {
+        "@id": "ggl://op/scale",
+        "@name": "Scale",
+        "@description": "Scale shape",
+        "@syntax": "shape ↕ factor",
+        "@params": { "factor": { "@type": "number" } }
+      },
+      "→": {
+        "@id": "ggl://op/translate",
+        "@name": "Translate",
+        "@description": "Move shape",
+        "@syntax": "shape → (x, y, z)",
+        "@params": {
+          "x": { "@type": "number" },
+          "y": { "@type": "number" },
+          "z": { "@type": "number" }
+        }
+      }
+    },
+
+    "@generator_operators": {
+      "⟳": {
+        "@id": "ggl://op/sweep",
+        "@name": "Sweep",
+        "@description": "Sweep profile along path",
+        "@syntax": "profile ⟳ path"
+      },
+      "⟰": {
+        "@id": "ggl://op/extrude",
+        "@name": "Extrude",
+        "@description": "Extrude 2D shape to 3D",
+        "@syntax": "shape ⟰ height",
+        "@params": { "height": { "@type": "number" } }
+      },
+      "⟱": {
+        "@id": "ggl://op/revolve",
+        "@name": "Revolve",
+        "@description": "Revolve profile around axis",
+        "@syntax": "profile ⟱ axis",
+        "@params": { "axis": { "@type": "enum", "@values": ["x", "y", "z"] } }
+      }
+    }
+  },
+
+  "@syntax": {
+    "@glyph_expression": {
+      "@pattern": "glyph {params}",
+      "@examples": [
+        "◯ {r:5}",
+        "□ {s:10, x:5, y:5}",
+        "△ {s:3}"
+      ]
+    },
+    "@compound_expression": {
+      "@pattern": "expr operator expr",
+      "@examples": [
+        "◯ {r:5} ⍯ □ {s:10}",
+        "◯ ⍰ △",
+        "□ ⍭ ◯"
+      ]
+    },
+    "@array_expression": {
+      "@pattern": "[ expr | var in range ]",
+      "@examples": [
+        "[ ◯ {r:n} | n in 1..5 ]",
+        "[ □ at (x,y,0) | x in 0..3, y in 0..3 ]"
+      ]
+    },
+    "@transform_expression": {
+      "@pattern": "expr transform_op value",
+      "@examples": [
+        "◯ ↻ 45",
+        "□ ↔ x",
+        "△ ↕ 2"
+      ]
+    },
+    "@nested_expression": {
+      "@pattern": "glyph op [ inner_expr ]",
+      "@examples": [
+        "◯ ⍰ [ △ ⍸ 6 ]",
+        "□ ⍯ [ ◯ {r:0.5} at corners ]"
+      ]
+    }
+  },
+
+  "@semantics": {
+    "@evaluation_order": [
+      "1. Primitives are instantiated with default params",
+      "2. Params override defaults",
+      "3. Transforms apply left-to-right",
+      "4. Boolean ops combine results",
+      "5. Arrays expand comprehensions",
+      "6. Final result is single geometric object"
+    ],
+    "@lazy_evaluation": true,
+    "@deterministic": true,
+    "@side_effect_free": true
+  },
+
+  "@examples": {
+    "simple_shapes": [
+      { "@ggl": "◯", "@description": "Unit circle/sphere" },
+      { "@ggl": "□ {s:5}", "@description": "5-unit square/cube" },
+      { "@ggl": "△ {s:3}", "@description": "3-unit triangle/tetrahedron" }
+    ],
+    "boolean_ops": [
+      { "@ggl": "◯ ⍯ □", "@description": "Union of circle and square" },
+      { "@ggl": "◯ ⍰ □ {s:0.5}", "@description": "Circle with square hole" },
+      { "@ggl": "◯ ⍭ □", "@description": "Intersection of circle and square" }
+    ],
+    "transforms": [
+      { "@ggl": "□ ↻ 45", "@description": "Square rotated 45 degrees" },
+      { "@ggl": "△ ↔ x", "@description": "Triangle mirrored on x-axis" },
+      { "@ggl": "◯ ↕ 2 → (5,0,0)", "@description": "Scaled and translated circle" }
+    ],
+    "arrays": [
+      { "@ggl": "□ ⍸ 8", "@description": "8 squares in radial pattern" },
+      { "@ggl": "[ ◯ {r:n*0.5} | n in 1..5 ]", "@description": "5 concentric circles" },
+      { "@ggl": "△ ⍼ (10, 2)", "@description": "10 triangles linearly spaced" }
+    ],
+    "complex": [
+      {
+        "@ggl": "◯ {r:10} ⍰ [ ◯ {r:8} ⍰ ( □ {s:2} ⍸ 20 ) ]",
+        "@description": "Gear shape"
+      },
+      {
+        "@ggl": "[ □ {s:1} at (x, y, z) | x in 0..2, y in 0..2, z in 0..2 ]",
+        "@description": "3x3x3 cube lattice"
+      },
+      {
+        "@ggl": "◯ ⍯ ( △ ↻ 0 ) ⍯ ( △ ↻ 60 ) ⍯ ( △ ↻ 120 )",
+        "@description": "Circle with 3 rotated triangles"
+      }
+    ]
+  },
+
+  "@compilation": {
+    "@target": "three.js",
+    "@optimizations": [
+      "constant_folding",
+      "dead_code_elimination",
+      "common_subexpression_elimination",
+      "parameter_pruning"
+    ],
+    "@output_formats": ["three.js", "svg", "openscad", "stl"]
+  },
+
+  "@bridge_to_svg3d": {
+    "@description": "Bidirectional mapping to SVG-3D language",
+    "@ref": "asx://schema/kuhul.svg3d.bridge.v1"
+  }
+}

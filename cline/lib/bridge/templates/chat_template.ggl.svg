@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:ggl="ggl://namespace/v1"
+     xmlns:kuhul="kuhul://namespace/v1"
+     viewBox="0 0 800 600">
+
+  <title>K'UHUL Chat Template</title>
+
+  <metadata>
+    <ggl:template version="1.0">
+      <ggl:format>
+        <![CDATA[
+{%- for message in messages %}
+{%- if message.role == 'system' %}
+<|kuhul|>[Pop system]
+  [Wo content]→[Ch'en "{{ message.content }}"]
+[Xul]
+{%- elif message.role == 'user' %}
+<|kuhul|>[Pop user]
+  [Wo query]→[Ch'en "{{ message.content }}"]
+[Xul]
+{%- elif message.role == 'assistant' %}
+<|kuhul|>[Pop assistant]
+  [Wo response]→[Ch'en "{{ message.content }}"]
+[Xul]
+{%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+<|kuhul|>[Pop assistant]
+  [Wo response]→
+{%- endif %}
+        ]]>
+      </ggl:format>
+    </ggl:template>
+  </metadata>
+
+  <defs>
+    <g id="message-frame">
+      <rect x="0" y="0" width="100%" height="auto" rx="8"
+            fill="rgba(22,242,170,0.1)" stroke="#16f2aa"/>
+    </g>
+  </defs>
+
+  <g id="chat-container" ggl:role="chat" kuhul:phase="projection">
+    <!-- Messages rendered here -->
+  </g>
+
+</svg>

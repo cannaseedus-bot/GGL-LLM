@@ -1,0 +1,464 @@
+/* ========================================================
+   K'UHUL SVG-3D ↔ GGL Bridge Runtime
+   File: kuhul-bridge.asx
+   Bidirectional translation and execution engine
+   ======================================================== */
+
+@module "kuhul.bridge.v1"
+@import "asx://schema/kuhul.svg3d.bridge.v1" as BridgeSchema
+@import "asx://schema/kuhul.ggl.v1" as GGLSchema
+@import "asx://runtime/log.v1" as Log
+
+/* --------------------------------------------------------
+   Bridge State
+   -------------------------------------------------------- */
+@state BridgeState {
+    translations: Array = [],
+    compiledPrograms: Map = {},
+    activeMappings: Map = {},
+    performance: {
+        translationTime: 0,
+        compilationTime: 0,
+        executionTime: 0
+    }
+}
+
+/* --------------------------------------------------------
+   SVG-3D Operator Mappings
+   -------------------------------------------------------- */
+@const SVG3D_TO_GGL = {
+    "(⤍)": { ggl: "encrypt", params: ["vector", "path"] },
+    "(⤎)": { ggl: "decrypt", params: ["encrypted", "path"] },
+    "(↻)": { ggl: "rotate", params: ["geometry", "angle"] },
+    "(↔)": { ggl: "mirror", params: ["geometry", "axis"] },
+    "(⟲)": { ggl: "spherical_grid", params: ["radius", "points"] },
+    "(⤦)": { ggl: "conditional", params: ["condition", "ifTrue", "ifFalse"] },
+    "(⟿)": { ggl: "generate_path", params: ["input", "seed"] },
+    "(⤂)": { ggl: "apply_weights", params: ["geometry", "weights"] }
+}
+
+/* --------------------------------------------------------
+   GGL Glyph Mappings
+   -------------------------------------------------------- */
+@const GGL_TO_SVG3D = {
+    "◯": { svg3d: "create_sphere", params: ["radius"] },
+    "□": { svg3d: "create_cube", params: ["size"] },
+    "△": { svg3d: "create_tetrahedron", params: ["size"] },
+    "◇": { svg3d: "create_octahedron", params: ["size"] },
+    "⬡": { svg3d: "create_icosahedron", params: ["size"] },
+    "⬢": { svg3d: "create_dodecahedron", params: ["size"] },
+    "⍯": { svg3d: "boolean_union", params: ["objects"] },
+    "⍰": { svg3d: "boolean_difference", params: ["objects"] },
+    "⍭": { svg3d: "boolean_intersection", params: ["objects"] },
+    "⍸": { svg3d: "radial_array", params: ["object", "count"] },
+    "rotate": { svg3d: "(↻)", params: ["geometry", "angle"] },
+    "mirror": { svg3d: "(↔)", params: ["geometry", "axis"] }
+}
+
+/* --------------------------------------------------------
+   Translation Engine
+   -------------------------------------------------------- */
+@class TranslationEngine {
+    @method translateSVG3DtoGGL(command: String) -> TranslationRecord {
+        @let startTime = @performance.now()
+
+        /* Parse SVG-3D command */
+        @let parsed = @invoke @parseSVG3D(command)
+        @if !parsed {
+            @throw TranslationError("Invalid SVG-3D command: ${command}")
+        }
+
+        /* Get mapping */
+        @let mapping = SVG3D_TO_GGL[parsed.operator]
+        @if !mapping {
+            @throw TranslationError("No mapping for operator: ${parsed.operator}")
+        }
+
+        /* Transform to GGL */
+        @let gglExpression = @invoke @transformToGGL(mapping, parsed.args)
+
+        /* Create translation record */
+        @let record = {
+            id: "trans_${@now()}",
+            timestamp: @now(),
+            source: { language: "SVG-3D", code: command, parsed: parsed },
+            target: { language: "GGL", code: gglExpression, ast: @invoke @generateGGLAST(gglExpression) },
+            mapping: mapping.ggl,
+            performance: { translationTime: @performance.now() - startTime }
+        }
+
+        /* Store translation */
+        @push BridgeState.translations, record
+
+        Log.info("Translated: ${command} → ${gglExpression}")
+        @return record
+    }
+
+    @method translateGGLtoSVG3D(expression: String) -> TranslationRecord {
+        @let startTime = @performance.now()
+
+        /* Parse GGL expression */
+        @let parsed = @invoke @parseGGL(expression)
+        @if !parsed {
+            @throw TranslationError("Invalid GGL expression: ${expression}")
+        }
+
+        /* Get mapping */
+        @let mapping = GGL_TO_SVG3D[parsed.operator]
+        @if !mapping {
+            @throw TranslationError("No mapping for: ${parsed.operator}")
+        }
+
+        /* Transform to SVG-3D */
+        @let svg3dCommand = @invoke @transformToSVG3D(mapping, parsed.args)
+
+        /* Create translation record */
+        @let record = {
+            id: "trans_${@now()}",
+            timestamp: @now(),
+            source: { language: "GGL", code: expression, parsed: parsed },
+            target: { language: "SVG-3D", code: svg3dCommand, ast: @invoke @generateSVG3DAST(svg3dCommand) },
+            mapping: mapping.svg3d,
+            performance: { translationTime: @performance.now() - startTime }
+        }
+
+        /* Store translation */
+        @push BridgeState.translations, record
+
+        Log.info("Translated: ${expression} → ${svg3dCommand}")
+        @return record
+    }
+
+    /* Transform mapped operation to GGL string */
+    @method @transformToGGL(mapping: Object, args: Array) -> String {
+        @let gglFunc = mapping.ggl
+        @let params = @join(args, ", ")
+        @return "${gglFunc}(${params})"
+    }
+
+    /* Transform mapped operation to SVG-3D string */
+    @method @transformToSVG3D(mapping: Object, args: Array) -> String {
+        @let svg3dOp = mapping.svg3d
+        @if svg3dOp.startsWith("(") {
+            /* Operator format */
+            @return "${svg3dOp} ${@join(args, ' ')}"
+        } @else {
+            /* Function format */
+            @return "${svg3dOp}(${@join(args, ', ')})"
+        }
+    }
+}
+
+/* --------------------------------------------------------
+   Parser Functions
+   -------------------------------------------------------- */
+@function @parseSVG3D(command: String) -> Object | null {
+    @let tokens = @trim(command).split(/\s+/)
+    @if @len(tokens) == 0 { @return null }
+
+    @let operator = tokens[0]
+    @let args = tokens.slice(1).map(arg => @parseArg(arg))
+
+    @return { operator, args }
+}
+
+@function @parseGGL(expression: String) -> Object | null {
+    @let expr = @trim(expression)
+
+    /* Glyph with params: ◯ {r:5} */
+    @let glyphMatch = expr.match(/^([◯□△◇⬡⬢⍯⍰⍭⍸])\s*(\{.*\})?$/)
+    @if glyphMatch {
+        @return {
+            operator: glyphMatch[1],
+            args: glyphMatch[2] ? [@parseParams(glyphMatch[2])] : []
+        }
+    }
+
+    /* Operation: rotate(◯, 45) */
+    @let opMatch = expr.match(/^(\w+)\((.*)\)$/)
+    @if opMatch {
+        @let args = opMatch[2].split(",").map(a => @trim(a))
+        @return { operator: opMatch[1], args }
+    }
+
+    /* Combination: ◯ ⍯ □ */
+    @let comboMatch = expr.match(/^([◯□△◇⬡⬢])\s+([⍯⍰⍭])\s+([◯□△◇⬡⬢])$/)
+    @if comboMatch {
+        @return {
+            operator: comboMatch[2],
+            args: [comboMatch[1], comboMatch[3]]
+        }
+    }
+
+    @return null
+}
+
+@function @parseArg(arg: String) -> Any {
+    @if arg == "true" { @return true }
+    @if arg == "false" { @return false }
+    @if !isNaN(arg) { @return Number(arg) }
+    @if arg.startsWith('"') && arg.endsWith('"') { @return arg.slice(1, -1) }
+    @if arg.startsWith('{') { @try { @return JSON.parse(arg) } @catch { @return arg } }
+    @return arg
+}
+
+@function @parseParams(paramStr: String) -> Object {
+    /* Parse {r:5, s:10} format */
+    @let result = {}
+    @let inner = paramStr.slice(1, -1)
+    @let pairs = inner.split(",")
+    @each pair in pairs {
+        @let [key, value] = pair.split(":").map(s => @trim(s))
+        result[key] = @parseArg(value)
+    }
+    @return result
+}
+
+/* --------------------------------------------------------
+   AST Generation
+   -------------------------------------------------------- */
+@function @generateGGLAST(expression: String) -> Object {
+    @let parsed = @parseGGL(expression)
+    @if !parsed { @return { type: "error", expression } }
+
+    @return {
+        type: "ggl_expression",
+        operator: parsed.operator,
+        args: parsed.args,
+        timestamp: @now(),
+        size: JSON.stringify(parsed).length
+    }
+}
+
+@function @generateSVG3DAST(command: String) -> Object {
+    @let parsed = @parseSVG3D(command)
+    @if !parsed { @return { type: "error", command } }
+
+    @return {
+        type: "svg3d_command",
+        operator: parsed.operator,
+        args: parsed.args,
+        timestamp: @now(),
+        size: JSON.stringify(parsed).length
+    }
+}
+
+/* --------------------------------------------------------
+   Compilation Engine
+   -------------------------------------------------------- */
+@class CompilationEngine {
+    @method compile(gglExpression: String) -> ExecutionPlan {
+        @let startTime = @performance.now()
+
+        /* Parse GGL */
+        @let ast = @generateGGLAST(gglExpression)
+
+        /* Generate execution steps */
+        @let steps = @invoke @generateSteps(ast)
+
+        /* Apply optimizations */
+        @let optimizations = @invoke @optimize(ast)
+
+        /* Create execution plan */
+        @let plan = {
+            id: "program_${@now()}",
+            ast: ast,
+            steps: steps,
+            optimizations: optimizations,
+            compiledAt: @now()
+        }
+
+        /* Store compiled program */
+        BridgeState.compiledPrograms[plan.id] = plan
+        BridgeState.performance.compilationTime = @performance.now() - startTime
+
+        Log.info("Compiled GGL program: ${plan.id} (${@len(steps)} steps)")
+        @return plan
+    }
+
+    @method @generateSteps(ast: Object) -> Array {
+        @let steps = []
+
+        @match ast.operator {
+            "◯" => @push steps, { type: "create", shape: "sphere", params: ast.args[0] ?? { r: 1 } }
+            "□" => @push steps, { type: "create", shape: "cube", params: ast.args[0] ?? { s: 1 } }
+            "△" => @push steps, { type: "create", shape: "tetrahedron", params: ast.args[0] ?? { s: 1 } }
+            "◇" => @push steps, { type: "create", shape: "octahedron", params: ast.args[0] ?? { s: 1 } }
+            "rotate" => @push steps, { type: "transform", operation: "rotate", params: { angle: ast.args[1] ?? 45 } }
+            "⍯" => @push steps, { type: "combine", operation: "union", shapes: ast.args }
+            "⍰" => @push steps, { type: "combine", operation: "difference", shapes: ast.args }
+            "⍭" => @push steps, { type: "combine", operation: "intersection", shapes: ast.args }
+            "⍸" => @push steps, { type: "array", operation: "radial", count: ast.args[1] ?? 6 }
+            @default => Log.warn("Unknown operator: ${ast.operator}")
+        }
+
+        @return steps
+    }
+
+    @method @optimize(ast: Object) -> Array {
+        @let optimizations = []
+
+        /* Constant folding */
+        @if ast.args && ast.args.some(a => typeof a == "number") {
+            @push optimizations, "constant_folding"
+        }
+
+        /* Parameter pruning */
+        @if ["◯", "□", "△"].includes(ast.operator) {
+            @push optimizations, "parameter_pruning"
+        }
+
+        @return optimizations
+    }
+}
+
+/* --------------------------------------------------------
+   Execution Engine
+   -------------------------------------------------------- */
+@class ExecutionEngine {
+    @method execute(planId: String) -> Array {
+        @let startTime = @performance.now()
+
+        @let plan = BridgeState.compiledPrograms[planId]
+        @if !plan {
+            @throw ExecutionError("Program ${planId} not found")
+        }
+
+        @let results = []
+        @each step in plan.steps {
+            @let result = @invoke @executeStep(step)
+            @push results, result
+        }
+
+        BridgeState.performance.executionTime = @performance.now() - startTime
+
+        Log.info("Executed program ${planId}: ${@len(results)} steps completed")
+        @return results
+    }
+
+    @method @executeStep(step: Object) -> Object {
+        @match step.type {
+            "create" => @return @invoke @createShape(step.shape, step.params)
+            "transform" => @return @invoke @applyTransform(step.operation, step.params)
+            "combine" => @return @invoke @combineShapes(step.operation, step.shapes)
+            "array" => @return @invoke @createArray(step.operation, step.count)
+            @default => @throw ExecutionError("Unknown step type: ${step.type}")
+        }
+    }
+
+    @method @createShape(shape: String, params: Object) -> Object {
+        Log.debug("Creating ${shape} with params: ${JSON.stringify(params)}")
+
+        @return {
+            type: "shape",
+            shape: shape,
+            params: params,
+            geometry: @invoke @getGeometrySpec(shape, params)
+        }
+    }
+
+    @method @getGeometrySpec(shape: String, params: Object) -> String {
+        @match shape {
+            "sphere" => @return "THREE.SphereGeometry(${params.r ?? 1}, 32, 32)"
+            "cube" => @return "THREE.BoxGeometry(${params.s ?? 1}, ${params.s ?? 1}, ${params.s ?? 1})"
+            "tetrahedron" => @return "THREE.TetrahedronGeometry(${params.s ?? 1})"
+            "octahedron" => @return "THREE.OctahedronGeometry(${params.s ?? 1})"
+            "icosahedron" => @return "THREE.IcosahedronGeometry(${params.s ?? 1})"
+            "dodecahedron" => @return "THREE.DodecahedronGeometry(${params.s ?? 1})"
+            @default => @return "THREE.SphereGeometry(1, 16, 16)"
+        }
+    }
+
+    @method @applyTransform(operation: String, params: Object) -> Object {
+        Log.debug("Applying ${operation}: ${JSON.stringify(params)}")
+
+        @return {
+            type: "transform",
+            operation: operation,
+            params: params
+        }
+    }
+
+    @method @combineShapes(operation: String, shapes: Array) -> Object {
+        Log.debug("Combining shapes with ${operation}")
+
+        @return {
+            type: "combine",
+            operation: operation,
+            shapes: shapes
+        }
+    }
+
+    @method @createArray(operation: String, count: Integer) -> Object {
+        Log.debug("Creating ${operation} array with ${count} copies")
+
+        @return {
+            type: "array",
+            operation: operation,
+            count: count
+        }
+    }
+}
+
+/* --------------------------------------------------------
+   Bridge API
+   -------------------------------------------------------- */
+@class KuhulBridge {
+    @let translator = new TranslationEngine()
+    @let compiler = new CompilationEngine()
+    @let executor = new ExecutionEngine()
+
+    /* Translate SVG-3D to GGL */
+    @method svg3dToGGL(command: String) -> String {
+        @let record = translator.translateSVG3DtoGGL(command)
+        @return record.target.code
+    }
+
+    /* Translate GGL to SVG-3D */
+    @method gglToSVG3D(expression: String) -> String {
+        @let record = translator.translateGGLtoSVG3D(expression)
+        @return record.target.code
+    }
+
+    /* Compile and execute GGL */
+    @method run(gglExpression: String) -> Array {
+        @let plan = compiler.compile(gglExpression)
+        @return executor.execute(plan.id)
+    }
+
+    /* Get bridge state */
+    @method getState() -> Object {
+        @return BridgeState
+    }
+
+    /* Get performance metrics */
+    @method getPerformance() -> Object {
+        @return BridgeState.performance
+    }
+}
+
+/* --------------------------------------------------------
+   Exports
+   -------------------------------------------------------- */
+@export {
+    @class KuhulBridge,
+    @class TranslationEngine,
+    @class CompilationEngine,
+    @class ExecutionEngine,
+    @const SVG3D_TO_GGL,
+    @const GGL_TO_SVG3D,
+    @state BridgeState,
+    @function @parseSVG3D,
+    @function @parseGGL,
+    @function @generateGGLAST,
+    @function @generateSVG3DAST
+}
+
+/* --------------------------------------------------------
+   Module Load
+   -------------------------------------------------------- */
+@on_load {
+    Log.info("K'UHUL SVG-3D ↔ GGL Bridge loaded")
+    Log.info("SVG-3D operators: (⤍) (↻) (⟲) (⟿) ...")
+    Log.info("GGL glyphs: ◯ □ △ ⍯ ⍰ ⍭ ...")
+}

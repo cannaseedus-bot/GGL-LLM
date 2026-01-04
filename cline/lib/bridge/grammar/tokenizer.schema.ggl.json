@@ -1,0 +1,130 @@
+{
+  "$schema": "ggl://schema/tokenizer.v1",
+  "@id": "kuhul://tokenizer/svg3d-ggl-bridge",
+  "@version": "1.0.0",
+  "@type": "bpe",
+  "config": {
+    "vocab_size": 32000,
+    "max_length": 8192,
+    "pad_token": "<|pad|>",
+    "unk_token": "<|unk|>",
+    "bos_token": "<|begin|>",
+    "eos_token": "<|end|>",
+    "add_prefix_space": false,
+    "trim_offsets": true
+  },
+  "special_tokens": {
+    "control": [
+      "<|begin|>",
+      "<|end|>",
+      "<|pad|>",
+      "<|unk|>"
+    ],
+    "mode": [
+      "<|svg|>",
+      "<|ggl|>",
+      "<|kuhul|>"
+    ],
+    "semantic": [
+      "<|phase|>",
+      "<|geometry|>",
+      "<|transform|>"
+    ]
+  },
+  "glyph_tokens": {
+    "primitives": [
+      "◯",
+      "□",
+      "△",
+      "◇",
+      "⬡",
+      "⬢"
+    ],
+    "boolean_ops": [
+      "⍯",
+      "⍰",
+      "⍭"
+    ],
+    "array_ops": [
+      "⍸",
+      "⍼",
+      "⍻"
+    ],
+    "transform_ops": [
+      "↻",
+      "↔",
+      "↕",
+      "→"
+    ],
+    "generator_ops": [
+      "⟳",
+      "⟰",
+      "⟱"
+    ]
+  },
+  "svg3d_tokens": {
+    "cipher": [
+      "(⤍)",
+      "(⤎)"
+    ],
+    "transform": [
+      "(↻)",
+      "(↔)"
+    ],
+    "generator": [
+      "(⟲)"
+    ],
+    "control": [
+      "(⤦)"
+    ],
+    "neural": [
+      "(⟿)",
+      "(⤂)"
+    ]
+  },
+  "kuhul_tokens": {
+    "phases": [
+      "[Pop]",
+      "[Wo]",
+      "[Sek]",
+      "[Ch'en]",
+      "[Yax]",
+      "[Xul]"
+    ],
+    "transition": "→"
+  },
+  "normalizer": {
+    "type": "sequence",
+    "normalizers": [
+      {
+        "type": "nfc"
+      },
+      {
+        "type": "strip"
+      },
+      {
+        "type": "lowercase",
+        "apply_to": "keywords_only"
+      }
+    ]
+  },
+  "pre_tokenizer": {
+    "type": "sequence",
+    "pretokenizers": [
+      {
+        "type": "whitespace"
+      },
+      {
+        "type": "punctuation"
+      },
+      {
+        "type": "glyph_split",
+        "glyphs": "◯□△◇⬡⬢⍯⍰⍭⍸⍼⍻↻↔↕→⟳⟰⟱"
+      }
+    ]
+  },
+  "decoder": {
+    "type": "bpe",
+    "suffix": ""
+  }
+}

@@ -1,0 +1,226 @@
+{
+  "$schema": "xjson://schema/core/v1",
+  "@id": "asx://schema/kuhul.svg.v1",
+  "@type": "schema",
+  "@version": "1.0.0",
+  "@status": "frozen",
+  "@description": "K'UHUL SVG ABI - Spatial computing protocol for deterministic state projection",
+
+  "@law": {
+    "@principle": "SVG is not output — it is the ABI",
+    "@execution_model": "Java → SVG (state) → K'UHUL (law) → Browser (lens) → GPU (math)",
+    "@invariants": [
+      "existence_precedes_execution",
+      "no_eval_from_state",
+      "deterministic_replay",
+      "infinite_resolution",
+      "canonical_serialization"
+    ]
+  },
+
+  "@phases": {
+    "Pop": {
+      "@id": "kuhul://phase/pop",
+      "@type": "existence",
+      "@description": "Entity comes into existence",
+      "@creates": "spatial_anchor"
+    },
+    "Wo": {
+      "@id": "kuhul://phase/wo",
+      "@type": "source",
+      "@description": "Origin binding / source declaration",
+      "@binds": "identity"
+    },
+    "Sek": {
+      "@id": "kuhul://phase/sek",
+      "@type": "action",
+      "@description": "State transition / signal injection",
+      "@executes": "transform"
+    },
+    "Chen": {
+      "@id": "kuhul://phase/chen",
+      "@type": "completion",
+      "@description": "State crystallization / result binding",
+      "@yields": "state"
+    },
+    "Yax": {
+      "@id": "kuhul://phase/yax",
+      "@type": "reference",
+      "@description": "Reference to existing entity",
+      "@reads": "entity"
+    },
+    "Xul": {
+      "@id": "kuhul://phase/xul",
+      "@type": "closure",
+      "@description": "Scope termination / phase boundary",
+      "@closes": "block"
+    }
+  },
+
+  "@svg_abi": {
+    "@description": "SVG as the canonical interop format for K'UHUL",
+    "@properties": {
+      "infinite_resolution": true,
+      "deterministic_geometry": true,
+      "canonical_serialization": true,
+      "scxq2_compressible": true,
+      "zero_eval": true,
+      "replayable": true,
+      "gpu_projection_friendly": true
+    },
+    "@role": "spatial_protocol",
+    "@carriers": ["geometry", "intent", "hierarchy", "animation", "temporal_deltas"]
+  },
+
+  "@spatial_computing": {
+    "@definition": "Treating space itself as executable structure",
+    "@not": ["3D graphics", "texture mapping", "raster thinking"],
+    "@is": ["vector fields over time", "mathematical addressability", "infinite coordinate systems"],
+
+    "@green_screen_law": {
+      "@description": "Green screen is promoted to a coordinate system",
+      "@principle": "Absence of content defines space; space exists before visuals",
+      "@transforms": {
+        "green_screen": "coordinate_system",
+        "video": "temporal_vector_field",
+        "content": "projection_into_space"
+      }
+    }
+  },
+
+  "definitions": {
+    "KuhulBlock": {
+      "@id": "asx://schema/kuhul.block.v1",
+      "@type": "object",
+      "@description": "A K'UHUL execution block",
+      "properties": {
+        "phase": {
+          "@type": "enum",
+          "@values": ["Pop", "Wo", "Sek", "Chen", "Yax", "Xul"]
+        },
+        "target": {
+          "@type": "string",
+          "@description": "Entity or action target"
+        },
+        "binding": {
+          "@type": "string",
+          "@description": "Value or reference binding"
+        },
+        "children": {
+          "@type": "array",
+          "@items": { "@ref": "#/definitions/KuhulBlock" }
+        }
+      }
+    },
+
+    "SvgProjection": {
+      "@id": "asx://schema/kuhul.svg.projection.v1",
+      "@type": "object",
+      "@description": "SVG output as K'UHUL state projection",
+      "properties": {
+        "coordinate_system": {
+          "@type": "object",
+          "properties": {
+            "origin": { "@type": "array", "@items": { "@type": "number" }, "@minItems": 2 },
+            "basis_vectors": { "@type": "array" },
+            "scale": { "@type": "number" },
+            "transform_space": { "@type": "string" }
+          }
+        },
+        "geometry": {
+          "@type": "array",
+          "@description": "Vector geometry elements"
+        },
+        "temporal_state": {
+          "@type": "object",
+          "properties": {
+            "frame": { "@type": "integer" },
+            "timestamp": { "@type": "number" },
+            "phase": { "@type": "string" }
+          }
+        }
+      }
+    },
+
+    "VideoPlayer": {
+      "@id": "asx://schema/kuhul.video_player.v1",
+      "@type": "object",
+      "@description": "K'UHUL video player as projection shell",
+      "@example": "[Pop kuhul_video_player] [Wo src 'kuhul://video-player.svg']→[Ch'en player]",
+      "properties": {
+        "src": {
+          "@type": "string",
+          "@format": "uri",
+          "@description": "SVG projection shell source"
+        },
+        "media": {
+          "@type": "string",
+          "@description": "Late-bound media source"
+        },
+        "controls": {
+          "@type": "boolean",
+          "@default": true
+        },
+        "autoplay": {
+          "@type": "boolean",
+          "@default": false
+        },
+        "state": {
+          "@type": "enum",
+          "@values": ["idle", "loading", "playing", "paused", "ended"]
+        }
+      }
+    },
+
+    "VectorGreenScreen": {
+      "@id": "asx://schema/kuhul.vector_green_screen.v1",
+      "@type": "object",
+      "@description": "Green screen as infinite coordinate plane",
+      "properties": {
+        "projection_surface": {
+          "@type": "string",
+          "@ref": "svg_canvas"
+        },
+        "spatial_tracker": {
+          "@type": "string",
+          "@ref": "vector_tracker"
+        },
+        "coordinate_system": {
+          "@ref": "#/definitions/SvgProjection/properties/coordinate_system"
+        },
+        "vector_frames": {
+          "@type": "array",
+          "@description": "Raster-to-vector converted frames"
+        },
+        "transforms": {
+          "@type": "array",
+          "@description": "Spatial transforms applied to vectors"
+        }
+      }
+    }
+  },
+
+  "@runtime_layers": {
+    "Java": { "@role": "deterministic_computation", "@emits": "SVG" },
+    "SVG": { "@role": "abi_protocol", "@carries": "state" },
+    "KUHUL": { "@role": "execution_law", "@enforces": "invariants" },
+    "Browser": { "@role": "projection_lens", "@renders": "visual" },
+    "GPU": { "@role": "math_accelerator", "@computes": "transforms" }
+  },
+
+  "@unification": {
+    "@description": "This model unifies all visual computing",
+    "@domains": [
+      "video_playback",
+      "ui",
+      "2d",
+      "3d",
+      "games",
+      "ai_visualization",
+      "training_data",
+      "agents",
+      "worlds"
+    ],
+    "@reason": "They are all vector fields over time"
+  }
+}

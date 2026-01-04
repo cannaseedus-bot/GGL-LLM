@@ -1,0 +1,53 @@
+{
+  "$schema": "ggl://schema/bridge.v1",
+  "@id": "kuhul://bridge/svg3d-ggl",
+  "@version": "1.0.0",
+  "@status": "frozen",
+  "@description": "K'UHUL SVG-3D ↔ GGL Inference Bridge",
+  "architecture": {
+    "principle": "SVG is not output — it is the ABI",
+    "layers": {
+      "inference_core": "opaque - weights only",
+      "tokenization": "symbolic - structure mirrored",
+      "policy": "lightweight - boundary constraints",
+      "projection": "spatial - SVG/3D output"
+    }
+  },
+  "files": {
+    "grammar": {
+      "vocab": "grammar/vocab.ggl.json",
+      "tokenizer": "grammar/tokenizer.schema.ggl.json",
+      "merges": "grammar/merges.ggl.txt",
+      "tokens_map": "grammar/tokens.map.ggl.json"
+    },
+    "policy": {
+      "generation": "policy/generation.ggl.json",
+      "constraints": "policy/model_constraints.ggl.json"
+    },
+    "weights": {
+      "tensors": "weights/safe.ggltensors",
+      "index": "weights/tensor.index.json"
+    },
+    "templates": {
+      "chat": "templates/chat_template.ggl.svg",
+      "geometry": "templates/geometry_template.ggl.svg"
+    },
+    "projection": {
+      "svg_runtime": "projection/svg_runtime.js",
+      "threejs_bridge": "projection/threejs_bridge.js"
+    }
+  },
+  "execution_flow": [
+    "1. Tokens from MX2LM",
+    "2. Normalization in bridge",
+    "3. GGL semantic layer",
+    "4. Inference execution",
+    "5. SVG/3D projection mouth"
+  ],
+  "invariants": [
+    "no_eval_from_state",
+    "deterministic_replay",
+    "existence_precedes_execution",
+    "nothing_executes_everything_describes"
+  ]
+}

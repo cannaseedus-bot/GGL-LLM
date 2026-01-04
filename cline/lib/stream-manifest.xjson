@@ -1,0 +1,139 @@
+{
+  "$schema": "xjson://schema/core/v1",
+  "@id": "asx://manifest/mx2lm.stream.v1",
+  "@type": "manifest",
+  "@version": "1.0.0",
+  "@status": "frozen",
+  "@description": "MX2LM Streaming Endpoint Manifest - ASX Language Family Bundle",
+
+  "@package": {
+    "name": "mx2lm-stream",
+    "version": "1.0.9",
+    "license": "ASX-MIT",
+    "author": "MX2LM Project"
+  },
+
+  "@files": {
+    "runtime": {
+      "@php": "stream.php",
+      "@asx": "stream.asx",
+      "@description": "Runtime implementations for SSE streaming"
+    },
+    "schema": {
+      "@xjson": "stream.xjson",
+      "@description": "Canonical schema definitions"
+    },
+    "library": {
+      "@jar": "cline-1.0.9.jar",
+      "@import_trigger": "cline-import.asx",
+      "@fetch_script": "fetch-cline-lib.sh",
+      "@description": "Cline library for Java/JVM integration (auto-fetched on import)"
+    },
+    "jars_management": {
+      "@registry": "jars-registry.xjson",
+      "@import_manager": "jars-import.asx",
+      "@description": "Complete JAR dependency registry and import manager"
+    },
+    "kuhul": {
+      "@svg_abi": "kuhul-svg.xjson",
+      "@emit_directives": "kuhul-emit.asx",
+      "@phases": "kuhul-phases.xjson",
+      "@description": "K'UHUL spatial computing - SVG as ABI for Java→K'UHUL bridge"
+    },
+    "kuhul_bridge": {
+      "@svg3d_bridge": "kuhul-svg3d-bridge.xjson",
+      "@ggl_schema": "kuhul-ggl.xjson",
+      "@bridge_runtime": "kuhul-bridge.asx",
+      "@description": "K'UHUL SVG-3D ↔ GGL Bridge - Bidirectional geometric language interop"
+    }
+  },
+
+  "@dependencies": {
+    "@runtime": {
+      "asx://runtime/sse.v1": "^1.0.0",
+      "asx://runtime/http.v1": "^1.0.0"
+    },
+    "@schemas": {
+      "xjson://schema/core/v1": "^1.0.0"
+    }
+  },
+
+  "@endpoints": {
+    "stream": {
+      "@path": "/stream.php",
+      "@method": ["GET", "POST"],
+      "@content_type": "text/event-stream",
+      "@input": {
+        "message": {
+          "@type": "string",
+          "@required": true,
+          "@source": ["body.message", "query.message"]
+        }
+      },
+      "@events": ["connect", "message", "complete", "end"]
+    }
+  },
+
+  "@sse_protocol": {
+    "@version": "1.0",
+    "@events": {
+      "connect": {
+        "@description": "Initial connection established",
+        "@payload": {
+          "status": "connected",
+          "model": "@dynamic",
+          "timestamp": "@unix_epoch"
+        }
+      },
+      "message": {
+        "@description": "Streaming content events",
+        "@variants": ["thinking", "chunk"]
+      },
+      "complete": {
+        "@description": "Stream completion with metadata",
+        "@payload": {
+          "type": "complete",
+          "total_chunks": "@integer",
+          "tokens_estimated": "@integer",
+          "finish_reason": "@enum(stop|length|error)",
+          "model": "@string",
+          "processing_time": "@string"
+        }
+      },
+      "end": {
+        "@description": "Stream termination signal",
+        "@payload": {
+          "status": "stream_complete"
+        }
+      }
+    }
+  },
+
+  "@models_registry": [
+    { "@id": "deepseek-r1", "@class": "reasoning" },
+    { "@id": "deepseek-coder", "@class": "code" },
+    { "@id": "janus-pro", "@class": "quantum" },
+    { "@id": "janus-flow", "@class": "realtime" },
+    { "@id": "llama3", "@class": "general" },
+    { "@id": "mistral", "@class": "efficient" },
+    { "@id": "codellama", "@class": "code" },
+    { "@id": "qwen-coder", "@class": "code" },
+    { "@id": "cline-agent", "@class": "agent" },
+    { "@id": "mx2-inference", "@class": "inference" },
+    { "@id": "kuhul-quantum", "@class": "quantum" }
+  ],
+
+  "@abi": {
+    "hash": "@computed",
+    "tokenizer": "asx://schema/tokenizer.abi.v1",
+    "json_rules": "asx://schema/canonical_json.v1",
+    "action_set": "asx://schema/sse_actions.v1"
+  },
+
+  "@compatibility": {
+    "asx_ram": "^1.0.0",
+    "scxq2": "^1.0.0",
+    "idb_api": "^1.0.0",
+    "kql": "^1.0.0"
+  }
+}

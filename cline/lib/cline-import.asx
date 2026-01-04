@@ -1,0 +1,129 @@
+/* ========================================================
+   Cline Library Import Trigger
+   File: cline-import.asx
+   Auto-fetch JAR if not present
+   ======================================================== */
+
+@module "cline.import.v1"
+@import "asx://runtime/fs.v1" as FS
+@import "asx://runtime/http.v1" as HTTP
+@import "asx://runtime/log.v1" as Log
+@import "./jars-registry.xjson" as Registry
+@import "./jars-import.asx" as JarsManager
+
+/* --------------------------------------------------------
+   Library Configuration
+   -------------------------------------------------------- */
+@const CLINE_LIB = {
+    "name": "cline-1.0.9.jar",
+    "version": "1.0.9",
+    "url": "https://mx2lm.app/cline-jars/lib/cline-1.0.9.jar",
+    "size_bytes": 184584677,
+    "checksum": "@sha256:auto"
+}
+
+/* --------------------------------------------------------
+   Import Trigger
+   -------------------------------------------------------- */
+@trigger ClineImport {
+    @on "import:cline"
+    @on "require:cline-lib"
+    @on "init:cline-agent"
+
+    @let lib_path = @resolve(__dirname, CLINE_LIB.name)
+
+    @if !FS.exists(lib_path) {
+        Log.info("Cline library not found, fetching...")
+        @invoke @fetch_library(lib_path)
+    } @else {
+        @let size = FS.size(lib_path)
+        @if size != CLINE_LIB.size_bytes {
+            Log.warn("Cline library size mismatch, re-fetching...")
+            @invoke @fetch_library(lib_path)
+        } @else {
+            Log.debug("Cline library present: ${lib_path}")
+        }
+    }
+
+    @return {
+        "status": "ready",
+        "path": lib_path,
+        "version": CLINE_LIB.version
+    }
+}
+
+/* --------------------------------------------------------
+   Fetch Library Function
+   -------------------------------------------------------- */
+@function @fetch_library(dest_path: String) -> Result {
+    Log.info("Downloading from: ${CLINE_LIB.url}")
+
+    @let response = HTTP.get(CLINE_LIB.url, {
+        @timeout 300000,
+        @retry 3,
+        @on_progress (received, total) => {
+            @let pct = @floor((received / total) * 100)
+            Log.progress("Downloading cline library... ${pct}%")
+        }
+    })
+
+    @if response.status != 200 {
+        @throw ImportError("Failed to fetch cline library: HTTP ${response.status}")
+    }
+
+    FS.write_bytes(dest_path, response.body)
+
+    @let written_size = FS.size(dest_path)
+    @if written_size != CLINE_LIB.size_bytes {
+        FS.remove(dest_path)
+        @throw ImportError("Download incomplete: ${written_size}/${CLINE_LIB.size_bytes} bytes")
+    }
+
+    Log.success("Cline library installed: ${dest_path}")
+
+    @return {
+        "status": "downloaded",
+        "path": dest_path,
+        "size": written_size
+    }
+}
+
+/* --------------------------------------------------------
+   Full Library Import (All JARs)
+   -------------------------------------------------------- */
+@trigger ClineFullImport {
+    @on "import:cline-all"
+    @on "require:cline-stack"
+
+    /* First ensure main cline JAR */
+    @invoke ClineImport()
+
+    /* Then load all dependency JARs */
+    @let result = JarsManager.JarsImport("full")
+
+    @return {
+        "status": "ready",
+        "cline": CLINE_LIB.version,
+        "jars_loaded": result.jars_loaded,
+        "classpath": result.classpath
+    }
+}
+
+/* --------------------------------------------------------
+   Export for External Use
+   -------------------------------------------------------- */
+@export {
+    @trigger ClineImport,
+    @trigger ClineFullImport,
+    @const CLINE_LIB,
+    @function @fetch_library,
+    @ref JarsManager,
+    @ref Registry
+}
+
+/* --------------------------------------------------------
+   Auto-execute on Module Load
+   -------------------------------------------------------- */
+@on_load {
+    @invoke ClineImport()
+}

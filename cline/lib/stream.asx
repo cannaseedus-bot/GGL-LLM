@@ -1,0 +1,237 @@
+/* ========================================================
+   MX2LM Model Streaming Endpoint
+   File: stream.asx
+   ASX Language Runtime Implementation (@ Grammar)
+   ======================================================== */
+
+@module "mx2lm.stream.v1"
+@import "asx://schema/mx2lm.stream.v1" as StreamSchema
+@import "asx://runtime/sse.v1" as SSE
+@import "asx://runtime/http.v1" as HTTP
+@import "./cline-import.asx" as ClineLib  /* Auto-fetch JAR if missing */
+
+/* --------------------------------------------------------
+   HTTP Headers Configuration
+   -------------------------------------------------------- */
+@headers {
+    @set "Content-Type" => "text/event-stream"
+    @set "Cache-Control" => "no-cache"
+    @set "Connection" => "keep-alive"
+    @set "X-Accel-Buffering" => "no"
+    @set "Access-Control-Allow-Origin" => "*"
+    @set "Access-Control-Allow-Headers" => "Content-Type"
+}
+
+/* --------------------------------------------------------
+   Request Handler
+   -------------------------------------------------------- */
+@handler StreamHandler {
+    @input request: StreamSchema.StreamRequest
+    @output stream: SSE.EventStream
+
+    @validate {
+        @require request.message != ""
+        @on_fail {
+            @emit SSE.Event {
+                @event "message"
+                @data { "error": "message_required" }
+            }
+            @terminate
+        }
+    }
+
+    @context {
+        @let model_name = @coalesce(request.model_name, @dirname())
+        @let timestamp = @now()
+    }
+
+    /* Initial connection event */
+    @emit SSE.Event {
+        @event "connect"
+        @data {
+            "status": "connected",
+            "model": @ctx.model_name,
+            "timestamp": @ctx.timestamp
+        }
+    }
+
+    /* Thinking phase with progress updates */
+    @sequence ThinkingPhase {
+        @delay 200ms
+
+        @each step in @thinking_steps {
+            @emit SSE.Event {
+                @event "message"
+                @data {
+                    "type": "thinking",
+                    "content": step.content,
+                    "progress": step.progress
+                }
+            }
+            @delay 200ms
+        }
+    }
+
+    /* Response generation and streaming */
+    @sequence ResponsePhase {
+        @let response = @invoke generate_response(@ctx.model_name, request.message)
+        @let chunks = @split(response, ". ")
+        @let total = @len(chunks)
+
+        @each chunk, index in chunks {
+            @if @trim(chunk) != "" {
+                @delay @random(100ms, 300ms)
+
+                @emit SSE.Event {
+                    @event "message"
+                    @data {
+                        "type": "chunk",
+                        "content": @concat(chunk, ". "),
+                        "chunk_index": index,
+                        "total_chunks": total,
+                        "progress": @min(100, 90 + ((index + 1) / total * 10))
+                    }
+                }
+            }
+        }
+
+        /* Completion event */
+        @emit SSE.Event {
+            @event "complete"
+            @data {
+                "type": "complete",
+                "total_chunks": total,
+                "tokens_estimated": @ceil(@len(response) / 4),
+                "finish_reason": "stop",
+                "model": @ctx.model_name,
+                "processing_time": "streamed"
+            }
+        }
+
+        /* End stream */
+        @emit SSE.Event {
+            @event "end"
+            @data { "status": "stream_complete" }
+        }
+    }
+}
+
+/* --------------------------------------------------------
+   Thinking Steps Definition
+   -------------------------------------------------------- */
+@const thinking_steps = [
+    { "content": "Processing your message...", "progress": 10 },
+    { "content": @template("Analyzing with ${model_name}..."), "progress": 30 },
+    { "content": "Generating response...", "progress": 60 },
+    { "content": "Finalizing output...", "progress": 90 }
+]
+
+/* --------------------------------------------------------
+   Response Generator
+   -------------------------------------------------------- */
+@function generate_response(model_name: String, message: String) -> String {
+    @match model_name {
+        "deepseek-r1" => @template(
+            "DeepSeek R1 analyzing your query: \"${message}\"\n\n" +
+            "I apply enhanced reasoning capabilities to understand complex queries. " +
+            "My analysis considers multiple perspectives and generates coherent responses. " +
+            "The quantum-enhanced inference ensures optimal results with high accuracy. " +
+            "Would you like me to elaborate on any specific aspect?"
+        )
+
+        "deepseek-coder" => @template(
+            "DeepSeek Coder processing programming query.\n\n" +
+            "For your question about: \"${message}\"\n\n" +
+            "I specialize in code generation, debugging, and optimization. " +
+            "I can help with multiple programming languages and best practices. " +
+            "Let me know if you need specific code examples or explanations."
+        )
+
+        "janus-pro" => @template(
+            "Janus Pro Quantum Analysis Stream.\n\n" +
+            "Processing through MX2LM quantum lattice...\n" +
+            "Query: \"${message}\"\n\n" +
+            "Dual-perspective reasoning engaged for optimal response generation. " +
+            "Quantum compression applied for efficiency. " +
+            "Entangled meaning vectors analyzed for deeper understanding."
+        )
+
+        "janus-flow" => @template(
+            "Janus Flow streaming response.\n\n" +
+            "Your message processed with optimized streaming capabilities. " +
+            "Low latency response generation enabled. " +
+            "Efficient token usage for fast interactions. " +
+            "Perfect for real-time conversational interfaces."
+        )
+
+        "llama3" => @template(
+            "Hello! I'm Llama 3 responding to your message.\n\n" +
+            "You asked: \"${message}\"\n\n" +
+            "As a general-purpose model, I can help with various topics. " +
+            "I provide balanced responses with good coverage. " +
+            "Let me know if you need more specific information."
+        )
+
+        "mistral" => @template(
+            "Mistral model responding efficiently.\n\n" +
+            "Message received and processed quickly. " +
+            "Optimized for fast turnaround without quality loss. " +
+            "Efficient resource usage for scalable applications. " +
+            "Ready for your next query."
+        )
+
+        "codellama" => @template(
+            "CodeLlama analyzing programming request.\n\n" +
+            "I can help with code generation, explanation, and debugging. " +
+            "Multiple programming languages supported. " +
+            "Best practices and optimization tips available. " +
+            "Need specific code help?"
+        )
+
+        "qwen-coder" => @template(
+            "Qwen Coder ready for programming assistance.\n\n" +
+            "Your query appears to be about programming. " +
+            "I can help with code implementation, debugging, and optimization. " +
+            "Clean code practices and efficient algorithms. " +
+            "Let me know your specific requirements."
+        )
+
+        "cline-agent" => @template(
+            "Cline Agent activated for task execution.\n\n" +
+            "Task analysis complete. Planning execution steps. " +
+            "Tool integration available for complex tasks. " +
+            "Quantum acceleration enabled for faster processing. " +
+            "Ready to execute your requested task."
+        )
+
+        "mx2-inference" => @template(
+            "MX2 Inference Engine streaming batch processing.\n\n" +
+            "Quantum-accelerated inference pipeline engaged. " +
+            "Parallel processing optimized for high throughput. " +
+            "SCXQ2 compression reduces latency. " +
+            "Ready for high-volume inference requests."
+        )
+
+        "kuhul-quantum" => @template(
+            "K'UHUL Quantum Engine streaming quantum processing.\n\n" +
+            "Quantum superposition of response states. " +
+            "Entanglement optimization for coherence. " +
+            "SCXQ2 compression at 98.5% ratio. " +
+            "Quantum computation complete with optimal results."
+        )
+
+        @default => @template(
+            "MX2LM Model streaming response to: \"${message}\"\n\n" +
+            "This is a streaming response from the ${model_name} model. " +
+            "Specialized streaming capabilities are optimized for real-time interaction."
+        )
+    }
+}
+
+/* --------------------------------------------------------
+   Entry Point
+   -------------------------------------------------------- */
+@main {
+    @let request = HTTP.parse_request()
+    @invoke StreamHandler(request)
+}

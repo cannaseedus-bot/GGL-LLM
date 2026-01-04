@@ -1,0 +1,40 @@
+{
+  "$schema": "ggl://schema/generation.v1",
+  "@id": "kuhul://policy/generation",
+  "@version": "1.0.0",
+  "defaults": {
+    "max_new_tokens": 2048,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "top_k": 50,
+    "repetition_penalty": 1.1,
+    "do_sample": true
+  },
+  "geometry_mode": {
+    "temperature": 0.3,
+    "top_p": 0.95,
+    "repetition_penalty": 1.0,
+    "description": "Precise geometry generation"
+  },
+  "creative_mode": {
+    "temperature": 1.0,
+    "top_p": 0.9,
+    "top_k": 100,
+    "description": "Creative/exploratory generation"
+  },
+  "deterministic_mode": {
+    "temperature": 0.0,
+    "do_sample": false,
+    "description": "Fully deterministic output"
+  },
+  "stop_sequences": [
+    "[Xul]",
+    "<|end|>",
+    "\n\n---\n"
+  ],
+  "ggl_constraints": {
+    "balanced_brackets": true,
+    "valid_glyphs_only": true,
+    "max_nesting_depth": 10
+  }
+}
