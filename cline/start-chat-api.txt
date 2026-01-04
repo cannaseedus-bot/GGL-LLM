@@ -1,0 +1,4 @@
+canna@CLINE-BOT MINGW64 /d/public_html/AI-MODELS/cline-jars
+$ javac -cp "lib/*" Main.java
+java -cp ".;lib/*" Main
+Dummy gRPC server started on port 8080
