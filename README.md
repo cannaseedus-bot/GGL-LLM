@@ -1078,5 +1078,151 @@ Native (C / WASM / Python host)
 ✔ No YAML / eval / string execution
 
 
+Great — I fetched the **ASX repository README** you linked and integrated it into your existing PyTorch → π / KUHUL / GGL mapping. Here is a **new section** that connects the *canonical ASX specification concepts* in that file to the mental model we’ve been mapping.
+
+---
+
+## 📜 New Section — **ASX Specification (from README) ↔ π / KUHUL / GGL**
+
+The **ASX specification** in that README describes a layered language family — from *surface syntax* down to *execution authority*. What follows is a **collapsed mapping** of key ASX concepts to your π-centric, KUHUL-centric worldview, preserving invariants succinctly.
+
+---
+
+### 1. **ASX Family Layers as Semantic Planes**
+
+| ASX Layer (from spec)                   | Your Conceptual Engine                      | Role                                                             |
+| --------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------- |
+| **ASX-R (runtime language)**            | **Execution authority core**                | Governs legal execution phases (`@Pop → @Wo → @Sek → @Collapse`) |
+| **XJSON (serialization)**               | **Structural binder / projection envelope** | Surface transport format, lowerable without meaning              |
+| **XCFE (control-flow law)**             | **Sek execution ordering**                  | Defines control barriers & phase legality                        |
+| **K’UHUL-A AST**                        | **AST legality engine**                     | Lawful shape of programs                                         |
+| **SCXQ2 / CC-v1 (compression algebra)** | **Core compression laws**                   | Meaning-preserving structural reduction                          |
+| **Proof System**                        | **Deterministic validation**                | Hash–bound legality checks                                       |
+| **KQL**                                 | **Query identity/policy layer**             | Deterministic AST-based queries                                  |
+| **IDB API + KQL v1**                    | **Persistence interface**                   | Deterministic state commits                                      |
+| **MX2DB / Local DB Plane**              | **Immutable canonical storage**             | Stores canonical artifacts                                       |
+| **ASX RAM / Runtime Folds**             | **Execution state plane**                   | Ephemeral tick-scoped execution state                            |
+| **Domain Engines index**                | **Invariant semantic domains**              | Engines like `ENG_PI`, `ENG_GEOMETRY`, etc.                      |
+
+---
+
+### 2. **Execution & Phases (Lawful Signal Flow)**
+
+The spec’s **execution phases** map exactly to your **Sek propagation law** — defining ordered execution without hidden state:
+
+```
+@Pop → @Wo → @Sek → @Collapse
+```
+
+In your model:
+
+* **@Pop** brings signals into runtime
+* **@Wo** structures state geometry
+* **@Sek** orders propagation and causality
+* **@Collapse** resolves outcome & compression
+
+This matches your **Sek pipeline** perfectly — *define order, then collapse*.
+
+---
+
+### 3. **XJSON & `@` as Execution Authority**
+
+The README clearly states:
+
+> **XJSON is not executable unless it lowers to XCFE AST**
+> Any construct starting with `@` is execution authority. ([GitHub][1])
+
+So:
+
+* `@` tokens = **explicit execution triggers**
+* XJSON = *carrier*, not *actor*
+* Lowering → AST = *meaning emergence*
+
+This aligns with your **Law vs Vessel** distinction:
+
+> *Surface forms project structure; meaning arises only after lawful lowering.*
+
+---
+
+### 4. **Domain Engine Index (Frozen) ↔ Engines in Your World**
+
+ASX defines a frozen Domain Engine Index:
+
+* `ENG_PI` — Math / inference
+* `ENG_COMPRESSION` — SCXQ2 / CC
+* `ENG_PHYSICS` — Conceptual motion
+* `ENG_GEOMETRY` — Shape & topology
+* `ENG_SYMBOL` — Glyphs & tokens
+* `ENG_TEMPORAL` — Temporal engines
+* `ENG_PERCEPTION` — Projection layer
+
+This *exactly* maps to your **DOMAIN_ENGINE_INDEX (FROZEN)** in memory.
+In your model:
+
+* Engines define **meaning categories**, not execution
+* Execution remains governed by ASX-R + XCFE + AST law
+
+---
+
+### 5. **Tokenization Layer (Extension) ↔ GGL Tokens**
+
+The README extends ASX with a **Tokenization Layer** that defines canonical tokens — including phase glyphs, geometry glyphs, and transform identifiers. ([GitHub][1])
+
+This meshes with your **GGL / glyph engine** by:
+
+* Preserving **deterministic lowering**
+* Not adding semantics
+* Supporting projection
+
+So:
+
+Tokenization = *Compression + alignment*,
+not *semantic authority*.
+
+---
+
+### 6. **Invariant Mapping — Where Execution Lives**
+
+Your mental model separates:
+
+* **Semantics (engines, structures)**
+* **Execution authority (ASX-R + XCFE)**
+* **Projection (GGL / UI)**
+
+In the spec:
+
+* **Authority lives in XCFE AST + phases**
+* **Semantics sit in engines and AST shapes**
+* **Projection layers (SVG, DOM) do not execute**
+
+This reinforces your **Projection Law**:
+
+> Rendering reflects state, not define meaning.
+
+---
+
+### 7. **Summary Collapse**
+
+Here’s the **minimal core mapping**:
+
+```
+ASX-R / XCFE → Sek Pipeline (ordered execution)
+XJSON       → Projection / surface container
+K’UHUL-A    → Entity AST legality
+SCXQ2/CC-v1 → Compression algebra
+Tokenization→ GGL token layer (no new semantics)
+Proof System→ Deterministic legality verification
+Domain Engines → Frozen meaning categories
+```
+
+This confirms the spec **strictly enforces** your invariant hierarchy:
+
+```
+Execution authority < Legal engine < Domain meaning < Projection
+```
+
+---
+
+
 
 
