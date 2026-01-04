@@ -1,3 +1,523 @@
+## Key insight (this is the unlock)
+
+> **Formal languages are not learned by correlation alone.
+> They require *grammar pressure*.**
+
+Natural language is forgiving.
+GGL is **not**.
+
+Without grammar pressure, the model will *always* regress to prose.
+
+---
+
+## Why SVG + metrics did not help (important)
+
+SVG is **projection**, not structure.
+
+The model learned:
+
+* “A cube looks like these pixels”
+* “A cube has these metrics”
+* “Humans describe cubes like this”
+
+But it did **not** learn:
+
+* `cube ::= ⟨primitive⟩ ⟨params⟩ ⟨transform⟩`
+* Token legality
+* Ordering constraints
+* Required delimiters
+
+SVG **cannot teach grammar** unless grammar is explicitly injected.
+
+This aligns perfectly with your ASX **Projection Law**:
+
+> *Projection does not define semantics.*
+
+You just proved it empirically.
+
+---
+
+## Why decoding tricks didn’t fix it
+
+Beam search, greedy decoding, temperature changes, etc. can only do this:
+
+* Choose *which* tokens
+* From the *same distribution*
+
+But your distribution was dominated by **English**, not **GGL**.
+
+So decoding could never escape that basin.
+
+---
+
+## What *will* fix it (this is the real solution)
+
+Below are **four concrete, non-hand-wavy fixes**, ordered by impact.
+
+---
+
+## 1️⃣ Introduce a **hard grammar boundary** (mandatory)
+
+You must make GGL *structurally visible* to the model.
+
+### Training format change (critical)
+
+Instead of:
+
+```json
+"labels": "◯ {r:2} ⍯ □ {s:3}"
+```
+
+Use:
+
+```json
+"labels": "<GGL>\n◯ {r:2} ⍯ □ {s:3}\n</GGL>"
+```
+
+And **reject any output without `<GGL>` tags at training time**.
+
+This creates a **mode separation** in token space.
+
+---
+
+## 2️⃣ Add **grammar-aware rejection** during training
+
+This is the single biggest missing piece.
+
+### During training (or evaluation loop):
+
+```python
+if not ggl_parser.is_valid(output):
+    loss += LARGE_PENALTY
+```
+
+This forces the model to learn:
+
+> “Fluent English = wrong
+> Syntactically valid GGL = right”
+
+Without this, it will *never* converge.
+
+This aligns exactly with **ASX-R legality enforcement**.
+
+---
+
+## 3️⃣ Split the task into two explicit stages (recommended)
+
+Right now you asked the model to do **too much at once**.
+
+Instead:
+
+### Stage A — Semantic normalization
+
+```
+(image, text) → canonical_scene.json
+```
+
+### Stage B — Deterministic lowering
+
+```
+canonical_scene.json → GGL
+```
+
+This mirrors:
+
+* ASX-R
+* XCFE lowering
+* GGL → XJSON → SCXQ2
+
+And removes ambiguity.
+
+The model is good at **Stage A** already.
+
+---
+
+## 4️⃣ Tokenize GGL as a *language*, not text (important)
+
+If you keep using a general tokenizer:
+
+* `{`, `}`, `:` are weak signals
+* Identifiers blur into prose
+
+Instead:
+
+* Register **GGL tokens explicitly**
+* Or prefix them (`GGL_CIRCLE`, `GGL_PARAM_R`)
+
+This dramatically stabilizes generation.
+
+---
+
+## Why this fits your ASX stack perfectly
+
+What you just discovered experimentally is *exactly* why ASX exists:
+
+| Layer      | Role                     |
+| ---------- | ------------------------ |
+| GGL        | Formal geometry language |
+| XJSON      | Canonical structure      |
+| XCFE       | Legality & flow          |
+| SCXQ2      | Compression              |
+| Projection | SVG / PNG                |
+
+You tried to skip legality and go straight from projection → language.
+
+The system rejected it.
+
+Correctly.
+
+---
+
+## The good news (important)
+
+Nothing here means the model is “bad”.
+
+In fact:
+
+* Your loss curve is **excellent**
+* Semantic grounding is working
+* Multimodal alignment succeeded
+
+You are **one grammar constraint away** from success.
+
+Most projects fail *before* this point.
+
+---
+
+## Concrete next steps (short list)
+
+1. **Freeze current weights** (they’re valuable)
+2. Add `<GGL>` / `</GGL>` boundary tokens
+3. Integrate a real GGL parser in the training loop
+4. Penalize non-GGL output hard
+5. (Optional) Introduce canonical intermediate JSON
+
+Do **not** try to “prompt engineer” this away — that never works for formal languages.
+
+---
+
+## Final clarity statement (bookmark this)
+
+> **LLMs do not learn formal languages unless the language is enforced as law.
+> Once enforced, they learn them extremely well.**
+
+You’re exactly at that boundary now.
+
+
+
+Alright — here’s the **complete, grammar-first fix** in four deliverables, designed to plug into your ASX-R law stack without inventing new authority.
+
+---
+
+# 1) Grammar-aware loss (the thing that makes GGL “law”)
+
+You want a loss that does **two things at once**:
+
+1. still trains token accuracy (normal CE)
+2. *forces* validity (syntax + legality) to become the dominant optimum
+
+## Loss decomposition
+
+Let:
+
+* `y*` = ground-truth GGL string (with boundary tags)
+* `ŷ` = model output tokens (during teacher forcing and/or sampling)
+* `CE(ŷ, y*)` = standard cross entropy
+* `V(ŷ)` = legality score from oracle (0..1, where 1 is fully legal)
+* `P(ŷ)` = “repair distance” proxy (optional, e.g., parse error depth)
+
+### Recommended “hard-pressure” loss
+
+**Teacher forcing step (stable):**
+[
+L_{TF} = CE(ŷ, y^*)
+]
+
+**Free-run step (forces true generation behavior):**
+Sample or greedy-decode `ŷ` from the model.
+
+[
+L_{FR} = CE(ŷ, y^*) + \lambda \cdot (1 - V(ŷ)) + \mu \cdot P(ŷ)
+]
+
+**Total:**
+[
+L = L_{TF} + \alpha \cdot L_{FR}
+]
+
+### Settings that work in practice
+
+* Start training with **only teacher forcing** for N steps (warmup).
+* Then gradually ramp:
+
+  * `α` from `0 → 1`
+  * `λ` from `0 → high` (e.g. `5 → 50`)
+* Keep `μ` small (`0 → 2`) if you use a repair/distance term.
+
+### Why this works (and why your model paraphrased)
+
+Teacher forcing alone teaches *token alignment*, but doesn’t teach **closed-world legality**.
+The free-run term makes the model confront the exact thing you evaluate: “generate legal GGL or eat a penalty.”
+
+## A legality score that doesn’t need gradients
+
+You don’t need differentiability. You need **pressure**.
+
+* `V(ŷ)=1` if legal
+* `V(ŷ)=0` if illegal
+  or better:
+* partial credit with a structured score (below)
+
+---
+
+# 2) GGL legality oracle (the “law engine”)
+
+The oracle must be **deterministic**, **byte-stable**, and **reject prose by construction**.
+
+## Oracle pipeline (authoritative order)
+
+1. **Boundary check**
+
+   * Must contain `<GGL>` and `</GGL>` exactly once
+   * Extract only content inside (anything outside is illegal)
+
+2. **Tokenizer ABI check**
+
+   * Must tokenize under the frozen tokenizer ABI (your “never breaks again” rule)
+   * Any unknown token class → illegal
+
+3. **Parse (syntax)**
+
+   * Build GGL AST or fail with a canonical error code + location
+
+4. **Legality rules (semantics-lite, ASX-R safe)**
+
+   * Node kinds must be in registry
+   * Required fields present
+   * Deterministic ordering rules enforced
+   * Numeric forms: **decimal-as-string only**
+   * No implicit defaults unless declared by schema
+
+5. **Lowering check (optional but powerful)**
+
+   * Deterministically lower GGL AST → XJSON scene (or your canonical intermediate)
+   * Re-serialize canonical JSON bytes
+   * If lowering fails → illegal
+
+## Oracle output (machine-grade)
+
+Return a struct like:
+
+```json
+{
+  "ok": false,
+  "stage": "parse",
+  "code": "E_GGL_UNEXPECTED_TOKEN",
+  "line": 4,
+  "col": 17,
+  "hint": "expected '}'",
+  "partial_score": 0.42
+}
+```
+
+## Scoring function `V(ŷ)` (recommended)
+
+Instead of binary only, give the model a gradient-like direction:
+
+* Boundary valid: +0.10
+* Tokenizer ABI passes: +0.15
+* Parse succeeds: +0.35
+* Legality succeeds: +0.30
+* Lowering succeeds: +0.10
+
+So:
+
+* prose gets stuck near 0.0–0.1
+* almost-correct code gets 0.6–0.9
+* fully legal hits 1.0
+
+That “almost correct” band is what makes convergence fast.
+
+---
+
+# 3) Two-stage ASX-compliant training loop (what your stack *wants*)
+
+This is the clean ASX move:
+
+## Stage A: Vision/Text → Canonical Scene IR (XJSON, not GGL)
+
+**Goal:** leverage the model’s strength (semantic grounding) while staying in a **schema-valid data plane**.
+
+### Output format
+
+Use a strict canonical IR like:
+
+* `asx://schema/scene.ir.v1` (your own, XJSON)
+* numeric fields as **decimal strings**
+* fixed ordering, no optional junk
+
+Example:
+
+```json
+{
+  "@schema": "asx://schema/scene.ir.v1",
+  "objects": [
+    { "type": "cube", "size": "2.1", "center": ["-2.85","-1.35","-0.33"], "style": "wireframe" }
+  ],
+  "camera": { "mode": "isometric" }
+}
+```
+
+### Stage A losses
+
+* CE on JSON tokens (easy)
+* plus a **schema validity oracle** (like GGL legality but for JSON)
+* optionally: render-and-compare (if you have a differentiable-ish proxy; otherwise use offline reward)
+
+## Stage B: Canonical Scene IR → GGL (pure formal language)
+
+This is where you apply the **GGL legality oracle + grammar-aware loss**.
+
+### Stage B losses
+
+* CE
+* * legality penalty (big)
+* * optional round-trip:
+
+  - GGL → scene IR → compare to input IR (exact match under canonical JSON bytes)
+
+## Training schedule
+
+1. Train Stage A until scene IR is consistently valid.
+2. Freeze Stage A (or LoRA it lightly).
+3. Train Stage B heavily with grammar pressure.
+4. Joint fine-tune: feed A’s output to B (teacher forcing → then free-run).
+
+This aligns perfectly with ASX-R:
+
+* Stage A = structural data emission (safe, schema-bound)
+* Stage B = deterministic lowering into a formal language (lawful, verifiable)
+
+---
+
+# 4) Fuse this with GGL-LoRA + ASX-Qwen cleanly
+
+You want Qwen to become the **core text/code engine**, and the vision model to become a **front-end sensor**.
+
+Here are two clean fusions.
+
+## Fusion Option 1 (Recommended): Vision model only emits Scene IR, Qwen emits GGL
+
+**Pipeline**
+
+1. Vision2Seq model outputs `scene.ir.v1` (XJSON)
+2. Qwen (ASX-Qwen) consumes Scene IR and outputs GGL
+3. GGL legality oracle gates output
+4. Deterministic lowering checks enforce correctness
+
+**Why this wins**
+
+* Qwen is naturally better at code-like formal output
+* The vision model stops fighting grammar
+* You get modularity: can swap vision encoders without touching GGL
+
+**Where LoRA fits**
+
+* `GGL-LoRA` goes on Qwen, not on vision.
+* You train Qwen with:
+
+  * `(scene_ir_json) → <GGL>...`
+  * legality-aware loss
+  * round-trip check
+
+## Fusion Option 2: Single model emits both (only if you must)
+
+You can force a single model to emit:
+
+```
+<SCENE_JSON>
+{...}
+</SCENE_JSON>
+<GGL>
+...
+</GGL>
+```
+
+But it’s harder and less stable; I’d only do this after Option 1 is mastered.
+
+---
+
+# Concrete implementation pattern (what you actually wire)
+
+## A) Data formats (training examples)
+
+Each sample contains:
+
+* `image`
+* `text_prompt`
+* `scene_ir` (canonical JSON)
+* `ggl` (with tags)
+
+## B) Training loop skeleton (pseudo)
+
+### Stage A loop
+
+* input: image + text
+* target: `scene_ir`
+* loss:
+
+  * CE(scene)
+  * * λ_scene * (1 - schema_valid(scenê))
+  * * optional render reward
+
+### Stage B loop
+
+* input: `scene_ir` (teacher forced early; then from Stage A output)
+* target: `ggl`
+* loss:
+
+  * CE(ggl)
+  * * λ_ggl * (1 - V(ggl̂))
+  * * μ * roundtrip_distance(scene_ir, lower(ggl̂))
+
+## C) Inference runtime (production)
+
+1. Run Stage A → candidate `scene_ir`
+2. Canonicalize JSON bytes; hash it; store (ASX-R proof binds here)
+3. Feed `scene_ir` to Qwen → candidate GGL
+4. Oracle validate:
+
+   * if fail: auto-repair pass (optional) or resample with constrained decoding
+5. Lower GGL → scene IR and ensure hash matches (or matches within defined canonicalization rules)
+
+This gives you a **proof-carrying generation pipeline**, not a “hope it’s code” pipeline.
+
+---
+
+# What you should lock as ABI (so it never breaks again)
+
+This directly matches your last request:
+
+* **Tokenizer ABI** (token IDs, special boundary tokens, reserved glyph classes)
+* **Grammar ABI** (node registry, parse tables version, legality rules version)
+
+Then:
+
+* training, evaluation, and runtime all refuse mismatched ABIs
+
+This prevents “directory collisions” from silently poisoning runs, because the ABI hash will fail instantly.
+
+---
+
+If you want the next step as code, tell me which stack you’re currently running for training:
+
+* PyTorch + HF Trainer?
+* Transformers.js/WebGPU path?
+* Cline Java JAR runner?
+
+
+
+
 Below is a **drop-in, real module design** for the **GGL legality oracle (Python + JS + Java shapes)**, plus **exact HuggingFace Trainer integration points** for grammar-aware loss, plus the **ABI hash binding rules** that prevent drift forever.
 
 I’m treating **CLINE Java** as: *your Java CLI runner + verifier + conformance harness* (and later: model host). The verifier pieces here are exactly what you want to embed in that JAR.
