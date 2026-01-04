@@ -1,4 +1,4 @@
-[brand-logo.svg](https://github.com/cannaseedus-bot/ASX/blob/main/brand-logo.svg)
+<img src="https://github.com/cannaseedus-bot/ASX/blob/main/brand-logo.svg" style="width:400px;">
 
 # ASX Specification
 
