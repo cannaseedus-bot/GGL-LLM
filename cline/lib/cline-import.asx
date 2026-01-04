@@ -8,6 +8,8 @@
 @import "asx://runtime/fs.v1" as FS
 @import "asx://runtime/http.v1" as HTTP
 @import "asx://runtime/log.v1" as Log
+@import "./jars-registry.xjson" as Registry
+@import "./jars-import.asx" as JarsManager
 
 /* --------------------------------------------------------
    Library Configuration
@@ -87,12 +89,36 @@
 }
 
 /* --------------------------------------------------------
+   Full Library Import (All JARs)
+   -------------------------------------------------------- */
+@trigger ClineFullImport {
+    @on "import:cline-all"
+    @on "require:cline-stack"
+
+    /* First ensure main cline JAR */
+    @invoke ClineImport()
+
+    /* Then load all dependency JARs */
+    @let result = JarsManager.JarsImport("full")
+
+    @return {
+        "status": "ready",
+        "cline": CLINE_LIB.version,
+        "jars_loaded": result.jars_loaded,
+        "classpath": result.classpath
+    }
+}
+
+/* --------------------------------------------------------
    Export for External Use
    -------------------------------------------------------- */
 @export {
     @trigger ClineImport,
+    @trigger ClineFullImport,
     @const CLINE_LIB,
-    @function @fetch_library
+    @function @fetch_library,
+    @ref JarsManager,
+    @ref Registry
 }
 
 /* --------------------------------------------------------

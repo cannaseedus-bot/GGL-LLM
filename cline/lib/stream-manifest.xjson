@@ -28,6 +28,11 @@
       "@import_trigger": "cline-import.asx",
       "@fetch_script": "fetch-cline-lib.sh",
       "@description": "Cline library for Java/JVM integration (auto-fetched on import)"
+    },
+    "jars_management": {
+      "@registry": "jars-registry.xjson",
+      "@import_manager": "jars-import.asx",
+      "@description": "Complete JAR dependency registry and import manager"
     }
   },
 

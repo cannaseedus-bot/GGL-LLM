@@ -1,0 +1,350 @@
+{
+  "$schema": "xjson://schema/core/v1",
+  "@id": "asx://schema/cline.jars.registry.v1",
+  "@type": "schema",
+  "@version": "1.0.0",
+  "@status": "frozen",
+  "@description": "Cline Library JAR Registry - Complete dependency manifest",
+
+  "@registry": {
+    "@core": {
+      "cline": {
+        "@id": "cline-1.0.9.jar",
+        "@version": "1.0.9",
+        "@size": 184584677,
+        "@url": "https://mx2lm.app/cline-jars/lib/cline-1.0.9.jar",
+        "@category": "core",
+        "@required": true,
+        "@description": "Main Cline agent library"
+      },
+      "cline-searchable": {
+        "@id": "cline-1.0.9-searchableOptions.jar",
+        "@version": "1.0.9",
+        "@size": 627,
+        "@category": "core",
+        "@required": false,
+        "@description": "Cline searchable options metadata"
+      }
+    },
+
+    "@grpc": {
+      "grpc-api": {
+        "@id": "grpc-api-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 314255,
+        "@category": "grpc",
+        "@required": true
+      },
+      "grpc-context": {
+        "@id": "grpc-context-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 293,
+        "@category": "grpc",
+        "@required": true
+      },
+      "grpc-core": {
+        "@id": "grpc-core-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 642780,
+        "@category": "grpc",
+        "@required": true
+      },
+      "grpc-kotlin-stub": {
+        "@id": "grpc-kotlin-stub-1.4.1.jar",
+        "@version": "1.4.1",
+        "@size": 95588,
+        "@category": "grpc",
+        "@required": false
+      },
+      "grpc-netty": {
+        "@id": "grpc-netty-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 288102,
+        "@category": "grpc",
+        "@required": true
+      },
+      "grpc-netty-shaded": {
+        "@id": "grpc-netty-shaded-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 9754313,
+        "@category": "grpc",
+        "@required": false,
+        "@description": "Shaded netty for isolation"
+      },
+      "grpc-okhttp": {
+        "@id": "grpc-okhttp-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 247755,
+        "@category": "grpc",
+        "@required": false
+      },
+      "grpc-protobuf": {
+        "@id": "grpc-protobuf-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 5291,
+        "@category": "grpc",
+        "@required": true
+      },
+      "grpc-protobuf-lite": {
+        "@id": "grpc-protobuf-lite-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 7853,
+        "@category": "grpc",
+        "@required": false
+      },
+      "grpc-services": {
+        "@id": "grpc-services-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 828981,
+        "@category": "grpc",
+        "@required": false
+      },
+      "grpc-stub": {
+        "@id": "grpc-stub-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 50249,
+        "@category": "grpc",
+        "@required": true
+      },
+      "grpc-util": {
+        "@id": "grpc-util-1.64.0.jar",
+        "@version": "1.64.0",
+        "@size": 98553,
+        "@category": "grpc",
+        "@required": false
+      }
+    },
+
+    "@netty": {
+      "netty-buffer": {
+        "@id": "netty-buffer-4.1.108.Final.jar",
+        "@version": "4.1.108.Final",
+        "@size": 307714,
+        "@category": "netty",
+        "@required": true
+      },
+      "netty-codec": {
+        "@id": "netty-codec-4.1.108.Final.jar",
+        "@version": "4.1.108.Final",
+        "@size": 350930,
+        "@category": "netty",
+        "@required": true
+      },
+      "netty-common": {
+        "@id": "netty-common-4.1.108.Final.jar",
+        "@version": "4.1.108.Final",
+        "@size": 660748,
+        "@category": "netty",
+        "@required": true
+      },
+      "netty-handler": {
+        "@id": "netty-handler-4.1.108.Final.jar",
+        "@version": "4.1.108.Final",
+        "@size": 568958,
+        "@category": "netty",
+        "@required": true
+      },
+      "netty-transport": {
+        "@id": "netty-transport-4.1.108.Final.jar",
+        "@version": "4.1.108.Final",
+        "@size": 497364,
+        "@category": "netty",
+        "@required": true
+      }
+    },
+
+    "@protobuf": {
+      "protobuf-java": {
+        "@id": "protobuf-java-3.25.1.jar",
+        "@version": "3.25.1",
+        "@size": 1875070,
+        "@category": "protobuf",
+        "@required": true
+      },
+      "protobuf-java-util": {
+        "@id": "protobuf-java-util-3.25.1.jar",
+        "@version": "3.25.1",
+        "@size": 73122,
+        "@category": "protobuf",
+        "@required": false
+      },
+      "proto-google-common": {
+        "@id": "proto-google-common-protos-2.29.0.jar",
+        "@version": "2.29.0",
+        "@size": 2030846,
+        "@category": "protobuf",
+        "@required": true
+      }
+    },
+
+    "@kotlin": {
+      "kotlin-stdlib": {
+        "@id": "kotlin-stdlib-1.8.0.jar",
+        "@version": "1.8.0",
+        "@size": 1636558,
+        "@category": "kotlin",
+        "@required": true
+      },
+      "kotlin-stdlib-common": {
+        "@id": "kotlin-stdlib-common-1.8.0.jar",
+        "@version": "1.8.0",
+        "@size": 217441,
+        "@category": "kotlin",
+        "@required": true
+      },
+      "kotlin-stdlib-jdk7": {
+        "@id": "kotlin-stdlib-jdk7-1.8.0.jar",
+        "@version": "1.8.0",
+        "@size": 963,
+        "@category": "kotlin",
+        "@required": false
+      },
+      "kotlin-stdlib-jdk8": {
+        "@id": "kotlin-stdlib-jdk8-1.8.0.jar",
+        "@version": "1.8.0",
+        "@size": 968,
+        "@category": "kotlin",
+        "@required": false
+      }
+    },
+
+    "@util": {
+      "guava": {
+        "@id": "guava-32.1.3-jre.jar",
+        "@version": "32.1.3-jre",
+        "@size": 3043932,
+        "@category": "util",
+        "@required": true
+      },
+      "gson": {
+        "@id": "gson-2.10.1.jar",
+        "@version": "2.10.1",
+        "@size": 283367,
+        "@category": "util",
+        "@required": true
+      },
+      "json": {
+        "@id": "json-20240303.jar",
+        "@version": "20240303",
+        "@size": 78332,
+        "@category": "util",
+        "@required": false
+      },
+      "jsoup": {
+        "@id": "jsoup-1.17.2.jar",
+        "@version": "1.17.2",
+        "@size": 445706,
+        "@category": "util",
+        "@required": false
+      },
+      "okio": {
+        "@id": "okio-jvm-3.4.0.jar",
+        "@version": "3.4.0",
+        "@size": 360090,
+        "@category": "util",
+        "@required": false
+      },
+      "failureaccess": {
+        "@id": "failureaccess-1.0.1.jar",
+        "@version": "1.0.1",
+        "@size": 4617,
+        "@category": "util",
+        "@required": true,
+        "@description": "Guava dependency for ListenableFuture"
+      },
+      "listenablefuture": {
+        "@id": "listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar",
+        "@version": "9999.0",
+        "@size": 2199,
+        "@category": "util",
+        "@required": false
+      },
+      "perfmark-api": {
+        "@id": "perfmark-api-0.26.0.jar",
+        "@version": "0.26.0",
+        "@size": 6816,
+        "@category": "util",
+        "@required": false
+      },
+      "checker-qual": {
+        "@id": "checker-qual-3.37.0.jar",
+        "@version": "3.37.0",
+        "@size": 224460,
+        "@category": "util",
+        "@required": false
+      }
+    },
+
+    "@annotations": {
+      "animal-sniffer": {
+        "@id": "animal-sniffer-annotations-1.23.jar",
+        "@version": "1.23",
+        "@size": 3109,
+        "@category": "annotations",
+        "@required": false
+      },
+      "jetbrains-annotations": {
+        "@id": "annotations-13.0.jar",
+        "@version": "13.0",
+        "@size": 17536,
+        "@category": "annotations",
+        "@required": false
+      },
+      "android-annotations": {
+        "@id": "annotations-4.1.1.4.jar",
+        "@version": "4.1.1.4",
+        "@size": 3120,
+        "@category": "annotations",
+        "@required": false
+      },
+      "error-prone": {
+        "@id": "error_prone_annotations-2.23.0.jar",
+        "@version": "2.23.0",
+        "@size": 16829,
+        "@category": "annotations",
+        "@required": false
+      },
+      "j2objc": {
+        "@id": "j2objc-annotations-2.8.jar",
+        "@version": "2.8",
+        "@size": 9301,
+        "@category": "annotations",
+        "@required": false
+      },
+      "javax-annotation": {
+        "@id": "javax.annotation-api-1.3.2.jar",
+        "@version": "1.3.2",
+        "@size": 26586,
+        "@category": "annotations",
+        "@required": true
+      },
+      "jsr305": {
+        "@id": "jsr305-3.0.2.jar",
+        "@version": "3.0.2",
+        "@size": 19936,
+        "@category": "annotations",
+        "@required": false
+      }
+    }
+  },
+
+  "@profiles": {
+    "minimal": {
+      "@description": "Minimum required JARs for Cline agent",
+      "@includes": ["@core.cline", "@annotations.javax-annotation"]
+    },
+    "grpc-client": {
+      "@description": "gRPC client stack",
+      "@includes": ["@grpc.*", "@netty.*", "@protobuf.*", "@util.guava", "@util.gson"]
+    },
+    "full": {
+      "@description": "All libraries",
+      "@includes": ["*"]
+    }
+  },
+
+  "@checksums": {
+    "@algorithm": "sha256",
+    "@verify_on_load": true
+  }
+}
