@@ -27,6 +27,344 @@
 - Execution phases: `@Pop → @Wo → @Sek → @Collapse` (XCFE-governed).
 - Authority source for all other layers.
 
+```java
+/*
+ * ASX-R — Java Verifier (Decimal-as-String Canonical)
+ * ===================================================
+ * Implements:
+ * - asx://canon/json.bytes.v1 (byte-exact canonical JSON)
+ * - Decimal-as-string ONLY rule:
+ *     - JSON numbers are allowed ONLY if they are integers (no decimal point, no exponent)
+ *     - decimals/floats/scientific MUST be encoded as JSON strings
+ *
+ * Output:
+ * - canonical JSON bytes (UTF-8)
+ * - SHA-256 hash of canonical bytes (hex)
+ *
+ * Notes:
+ * - Objects: keys sorted lexicographically (Unicode code unit order)
+ * - Arrays: preserved order
+ * - No whitespace
+ * - Strings: strict JSON escaping (\uXXXX for control chars; also escapes \, ", and control)
+ *
+ * Dependency: Jackson Databind
+ *   com.fasterxml.jackson.core:jackson-databind
+ */
+
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+public final class AsxJsonVerifier {
+
+  // JSON integer must be: -?(0|[1-9][0-9]*)
+  // No leading +, no leading zeros (except "0"), no decimals, no exponent.
+  private static final Pattern INT_JSON = Pattern.compile("-?(0|[1-9][0-9]*)");
+
+  // Optional helper: decimal-string pattern (if you want to validate MFA-1 numeric strings)
+  // Allows: "12", "-12", "12.34", "-0.5", "1e-9", "-1E+9"
+  // You said "Decimal-as-string only" and "verifier parses them for MFA-1 if needed" —
+  // so this is NOT required for hashing; it's only a helper for metric validators.
+  private static final Pattern DECIMAL_STRING = Pattern.compile(
+      "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$"
+  );
+
+  private static final ObjectMapper MAPPER = new ObjectMapper(new JsonFactory());
+
+  private AsxJsonVerifier() {}
+
+  /* =========================
+   * Public API
+   * ========================= */
+
+  /** Parse JSON into a tree (no canonicalization here). */
+  public static JsonNode parseJson(String jsonUtf8) throws IOException {
+    try {
+      return MAPPER.readTree(jsonUtf8);
+    } catch (JsonParseException e) {
+      throw new IOException("Invalid JSON: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Verify "Decimal-as-string ONLY":
+   * - numbers must be integers (and text must match INT_JSON)
+   * - disallow NaN/Infinity (not valid JSON anyway)
+   */
+  public static void verifyNoFloatNumbers(JsonNode node) {
+    walk(node, new JsonWalker() {
+      @Override public void onNumber(JsonNode n, String path) {
+        // Jackson may represent integer numbers as int/long/biginteger.
+        // But we enforce textual form matches strict JSON integer grammar.
+        final String txt = n.asText();
+
+        // Must be integral by Jackson AND match strict grammar
+        if (!n.isIntegralNumber() || !INT_JSON.matcher(txt).matches()) {
+          throw new AsxVerifyException("Illegal number (non-integer). Use decimal-as-string. path=" + path + " value=" + txt);
+        }
+      }
+    });
+  }
+
+  /**
+   * Canonical JSON bytes per asx://canon/json.bytes.v1
+   * - sorted object keys
+   * - no whitespace
+   * - strict escaping
+   * - UTF-8 output
+   */
+  public static byte[] canonicalJsonBytes(JsonNode root) {
+    StringBuilder sb = new StringBuilder(4096);
+    writeCanon(root, sb);
+    return sb.toString().getBytes(StandardCharsets.UTF_8);
+  }
+
+  /** SHA-256 hex of canonical JSON bytes. */
+  public static String sha256Hex(byte[] bytes) {
+    try {
+      MessageDigest md = MessageDigest.getInstance("SHA-256");
+      byte[] dig = md.digest(bytes);
+      return toHex(dig);
+    } catch (NoSuchAlgorithmException e) {
+      throw new RuntimeException("SHA-256 not available", e);
+    }
+  }
+
+  /** Convenience: verify + canonicalize + hash. */
+  public static Result verifyAndHash(JsonNode root) {
+    verifyNoFloatNumbers(root);
+    byte[] canon = canonicalJsonBytes(root);
+    String hash = sha256Hex(canon);
+    return new Result(canon, hash);
+  }
+
+  /* =========================
+   * Canonical Writer (byte-exact)
+   * ========================= */
+
+  private static void writeCanon(JsonNode n, StringBuilder out) {
+    if (n == null || n.isNull()) {
+      out.append("null");
+      return;
+    }
+    if (n.isObject()) {
+      out.append('{');
+      // Gather and sort keys
+      List<String> keys = new ArrayList<>();
+      Iterator<String> it = n.fieldNames();
+      while (it.hasNext()) keys.add(it.next());
+      Collections.sort(keys);
+
+      boolean first = true;
+      for (String k : keys) {
+        if (!first) out.append(',');
+        first = false;
+        writeJsonString(k, out);
+        out.append(':');
+        writeCanon(n.get(k), out);
+      }
+      out.append('}');
+      return;
+    }
+    if (n.isArray()) {
+      out.append('[');
+      for (int i = 0; i < n.size(); i++) {
+        if (i > 0) out.append(',');
+        writeCanon(n.get(i), out);
+      }
+      out.append(']');
+      return;
+    }
+    if (n.isTextual()) {
+      writeJsonString(n.asText(), out);
+      return;
+    }
+    if (n.isBoolean()) {
+      out.append(n.asBoolean() ? "true" : "false");
+      return;
+    }
+    if (n.isNumber()) {
+      // Decimal-as-string rule should have been verified earlier,
+      // but keep this safe here too.
+      final String txt = n.asText();
+      if (!INT_JSON.matcher(txt).matches()) {
+        throw new AsxVerifyException("Illegal number in canonicalizer (non-integer). Use decimal-as-string. value=" + txt);
+      }
+      out.append(txt);
+      return;
+    }
+
+    // Disallow other node types in canonical bytes (binary, POJO, etc.)
+    throw new AsxVerifyException("Illegal JSON node type for canonicalization: " + n.getNodeType());
+  }
+
+  /**
+   * JSON string escaping:
+   * - Escape: \, ", control chars (0x00-0x1F)
+   * - Use \uXXXX for control chars (plus any other disallowed controls)
+   * - Allow UTF-8 in output (no forced \u for non-ASCII)
+   */
+  private static void writeJsonString(String s, StringBuilder out) {
+    out.append('"');
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      switch (c) {
+        case '"':  out.append("\\\""); break;
+        case '\\': out.append("\\\\"); break;
+        case '\b': out.append("\\b");  break;
+        case '\f': out.append("\\f");  break;
+        case '\n': out.append("\\n");  break;
+        case '\r': out.append("\\r");  break;
+        case '\t': out.append("\\t");  break;
+        default:
+          if (c <= 0x1F) {
+            out.append("\\u");
+            out.append(hex4(c));
+          } else {
+            out.append(c);
+          }
+      }
+    }
+    out.append('"');
+  }
+
+  private static String hex4(char c) {
+    String h = Integer.toHexString(c);
+    // pad to 4
+    if (h.length() == 1) return "000" + h;
+    if (h.length() == 2) return "00" + h;
+    if (h.length() == 3) return "0" + h;
+    return h;
+  }
+
+  private static String toHex(byte[] b) {
+    char[] hex = "0123456789abcdef".toCharArray();
+    StringBuilder sb = new StringBuilder(b.length * 2);
+    for (byte value : b) {
+      int v = value & 0xFF;
+      sb.append(hex[v >>> 4]);
+      sb.append(hex[v & 0x0F]);
+    }
+    return sb.toString();
+  }
+
+  /* =========================
+   * Tree walker (for verifications)
+   * ========================= */
+
+  private interface JsonWalker {
+    default void onNumber(JsonNode n, String path) {}
+  }
+
+  private static void walk(JsonNode n, JsonWalker w) {
+    walk(n, w, "$");
+  }
+
+  private static void walk(JsonNode n, JsonWalker w, String path) {
+    if (n == null || n.isNull()) return;
+
+    if (n.isNumber()) {
+      w.onNumber(n, path);
+      return;
+    }
+
+    if (n.isObject()) {
+      Iterator<Map.Entry<String, JsonNode>> fields = n.fields();
+      while (fields.hasNext()) {
+        Map.Entry<String, JsonNode> e = fields.next();
+        String p = path + "." + e.getKey();
+        walk(e.getValue(), w, p);
+      }
+      return;
+    }
+
+    if (n.isArray()) {
+      for (int i = 0; i < n.size(); i++) {
+        walk(n.get(i), w, path + "[" + i + "]");
+      }
+      return;
+    }
+
+    // textual/boolean ok; other types are handled during canonicalization
+  }
+
+  /* =========================
+   * Optional: decimal string helper (MFA-1)
+   * ========================= */
+
+  public static boolean isDecimalString(String s) {
+    return s != null && DECIMAL_STRING.matcher(s).matches();
+  }
+
+  /* =========================
+   * CLI harness
+   * ========================= */
+
+  public static void main(String[] args) throws Exception {
+    if (args.length != 1) {
+      System.err.println("Usage: java AsxJsonVerifier <input.json>");
+      System.exit(2);
+    }
+    String json = Files.readString(Path.of(args[0]), StandardCharsets.UTF_8);
+    JsonNode root = parseJson(json);
+
+    Result r = verifyAndHash(root);
+
+    // Print canonical JSON (UTF-8) then hash
+    System.out.write(r.canonicalBytes);
+    System.out.write('\n');
+    System.out.println("sha256=" + r.sha256Hex);
+  }
+
+  /* =========================
+   * Types
+   * ========================= */
+
+  public static final class Result {
+    public final byte[] canonicalBytes;
+    public final String sha256Hex;
+    public Result(byte[] canonicalBytes, String sha256Hex) {
+      this.canonicalBytes = canonicalBytes;
+      this.sha256Hex = sha256Hex;
+    }
+  }
+
+  public static final class AsxVerifyException extends RuntimeException {
+    public AsxVerifyException(String msg) { super(msg); }
+  }
+}
+```
+
+## Minimal build (Maven)
+
+```xml
+<dependencies>
+  <dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>2.17.2</version>
+  </dependency>
+</dependencies>
+```
+
+
+
 ### 3. XJSON
 - Surface serialization and transport form representing ASX structures as JSON envelopes.
 - Must lower deterministically into ASX-R-legal AST shapes; not itself the language.
