@@ -33,6 +33,12 @@
       "@registry": "jars-registry.xjson",
       "@import_manager": "jars-import.asx",
       "@description": "Complete JAR dependency registry and import manager"
+    },
+    "kuhul": {
+      "@svg_abi": "kuhul-svg.xjson",
+      "@emit_directives": "kuhul-emit.asx",
+      "@phases": "kuhul-phases.xjson",
+      "@description": "K'UHUL spatial computing - SVG as ABI for Java→K'UHUL bridge"
     }
   },
 
