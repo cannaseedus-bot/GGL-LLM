@@ -11,6 +11,10 @@
 # ASX Specification
 
 ## Appendix A — ASX Family Glossary (Normative)
+<p align="center">
+  <strong>ASX — Structural Computation, Deterministic Execution</strong><br/>
+  <em>Geometry · Compression · Proof · Runtime Law</em>
+</p>
 
 ### 1. ASX
 - Language family umbrella defining hierarchy, invariants, and authority model.
