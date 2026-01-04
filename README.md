@@ -27,344 +27,6 @@
 - Execution phases: `@Pop → @Wo → @Sek → @Collapse` (XCFE-governed).
 - Authority source for all other layers.
 
-```java
-/*
- * ASX-R — Java Verifier (Decimal-as-String Canonical)
- * ===================================================
- * Implements:
- * - asx://canon/json.bytes.v1 (byte-exact canonical JSON)
- * - Decimal-as-string ONLY rule:
- *     - JSON numbers are allowed ONLY if they are integers (no decimal point, no exponent)
- *     - decimals/floats/scientific MUST be encoded as JSON strings
- *
- * Output:
- * - canonical JSON bytes (UTF-8)
- * - SHA-256 hash of canonical bytes (hex)
- *
- * Notes:
- * - Objects: keys sorted lexicographically (Unicode code unit order)
- * - Arrays: preserved order
- * - No whitespace
- * - Strings: strict JSON escaping (\uXXXX for control chars; also escapes \, ", and control)
- *
- * Dependency: Jackson Databind
- *   com.fasterxml.jackson.core:jackson-databind
- */
-
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
-
-public final class AsxJsonVerifier {
-
-  // JSON integer must be: -?(0|[1-9][0-9]*)
-  // No leading +, no leading zeros (except "0"), no decimals, no exponent.
-  private static final Pattern INT_JSON = Pattern.compile("-?(0|[1-9][0-9]*)");
-
-  // Optional helper: decimal-string pattern (if you want to validate MFA-1 numeric strings)
-  // Allows: "12", "-12", "12.34", "-0.5", "1e-9", "-1E+9"
-  // You said "Decimal-as-string only" and "verifier parses them for MFA-1 if needed" —
-  // so this is NOT required for hashing; it's only a helper for metric validators.
-  private static final Pattern DECIMAL_STRING = Pattern.compile(
-      "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$"
-  );
-
-  private static final ObjectMapper MAPPER = new ObjectMapper(new JsonFactory());
-
-  private AsxJsonVerifier() {}
-
-  /* =========================
-   * Public API
-   * ========================= */
-
-  /** Parse JSON into a tree (no canonicalization here). */
-  public static JsonNode parseJson(String jsonUtf8) throws IOException {
-    try {
-      return MAPPER.readTree(jsonUtf8);
-    } catch (JsonParseException e) {
-      throw new IOException("Invalid JSON: " + e.getMessage(), e);
-    }
-  }
-
-  /**
-   * Verify "Decimal-as-string ONLY":
-   * - numbers must be integers (and text must match INT_JSON)
-   * - disallow NaN/Infinity (not valid JSON anyway)
-   */
-  public static void verifyNoFloatNumbers(JsonNode node) {
-    walk(node, new JsonWalker() {
-      @Override public void onNumber(JsonNode n, String path) {
-        // Jackson may represent integer numbers as int/long/biginteger.
-        // But we enforce textual form matches strict JSON integer grammar.
-        final String txt = n.asText();
-
-        // Must be integral by Jackson AND match strict grammar
-        if (!n.isIntegralNumber() || !INT_JSON.matcher(txt).matches()) {
-          throw new AsxVerifyException("Illegal number (non-integer). Use decimal-as-string. path=" + path + " value=" + txt);
-        }
-      }
-    });
-  }
-
-  /**
-   * Canonical JSON bytes per asx://canon/json.bytes.v1
-   * - sorted object keys
-   * - no whitespace
-   * - strict escaping
-   * - UTF-8 output
-   */
-  public static byte[] canonicalJsonBytes(JsonNode root) {
-    StringBuilder sb = new StringBuilder(4096);
-    writeCanon(root, sb);
-    return sb.toString().getBytes(StandardCharsets.UTF_8);
-  }
-
-  /** SHA-256 hex of canonical JSON bytes. */
-  public static String sha256Hex(byte[] bytes) {
-    try {
-      MessageDigest md = MessageDigest.getInstance("SHA-256");
-      byte[] dig = md.digest(bytes);
-      return toHex(dig);
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException("SHA-256 not available", e);
-    }
-  }
-
-  /** Convenience: verify + canonicalize + hash. */
-  public static Result verifyAndHash(JsonNode root) {
-    verifyNoFloatNumbers(root);
-    byte[] canon = canonicalJsonBytes(root);
-    String hash = sha256Hex(canon);
-    return new Result(canon, hash);
-  }
-
-  /* =========================
-   * Canonical Writer (byte-exact)
-   * ========================= */
-
-  private static void writeCanon(JsonNode n, StringBuilder out) {
-    if (n == null || n.isNull()) {
-      out.append("null");
-      return;
-    }
-    if (n.isObject()) {
-      out.append('{');
-      // Gather and sort keys
-      List<String> keys = new ArrayList<>();
-      Iterator<String> it = n.fieldNames();
-      while (it.hasNext()) keys.add(it.next());
-      Collections.sort(keys);
-
-      boolean first = true;
-      for (String k : keys) {
-        if (!first) out.append(',');
-        first = false;
-        writeJsonString(k, out);
-        out.append(':');
-        writeCanon(n.get(k), out);
-      }
-      out.append('}');
-      return;
-    }
-    if (n.isArray()) {
-      out.append('[');
-      for (int i = 0; i < n.size(); i++) {
-        if (i > 0) out.append(',');
-        writeCanon(n.get(i), out);
-      }
-      out.append(']');
-      return;
-    }
-    if (n.isTextual()) {
-      writeJsonString(n.asText(), out);
-      return;
-    }
-    if (n.isBoolean()) {
-      out.append(n.asBoolean() ? "true" : "false");
-      return;
-    }
-    if (n.isNumber()) {
-      // Decimal-as-string rule should have been verified earlier,
-      // but keep this safe here too.
-      final String txt = n.asText();
-      if (!INT_JSON.matcher(txt).matches()) {
-        throw new AsxVerifyException("Illegal number in canonicalizer (non-integer). Use decimal-as-string. value=" + txt);
-      }
-      out.append(txt);
-      return;
-    }
-
-    // Disallow other node types in canonical bytes (binary, POJO, etc.)
-    throw new AsxVerifyException("Illegal JSON node type for canonicalization: " + n.getNodeType());
-  }
-
-  /**
-   * JSON string escaping:
-   * - Escape: \, ", control chars (0x00-0x1F)
-   * - Use \uXXXX for control chars (plus any other disallowed controls)
-   * - Allow UTF-8 in output (no forced \u for non-ASCII)
-   */
-  private static void writeJsonString(String s, StringBuilder out) {
-    out.append('"');
-    for (int i = 0; i < s.length(); i++) {
-      char c = s.charAt(i);
-      switch (c) {
-        case '"':  out.append("\\\""); break;
-        case '\\': out.append("\\\\"); break;
-        case '\b': out.append("\\b");  break;
-        case '\f': out.append("\\f");  break;
-        case '\n': out.append("\\n");  break;
-        case '\r': out.append("\\r");  break;
-        case '\t': out.append("\\t");  break;
-        default:
-          if (c <= 0x1F) {
-            out.append("\\u");
-            out.append(hex4(c));
-          } else {
-            out.append(c);
-          }
-      }
-    }
-    out.append('"');
-  }
-
-  private static String hex4(char c) {
-    String h = Integer.toHexString(c);
-    // pad to 4
-    if (h.length() == 1) return "000" + h;
-    if (h.length() == 2) return "00" + h;
-    if (h.length() == 3) return "0" + h;
-    return h;
-  }
-
-  private static String toHex(byte[] b) {
-    char[] hex = "0123456789abcdef".toCharArray();
-    StringBuilder sb = new StringBuilder(b.length * 2);
-    for (byte value : b) {
-      int v = value & 0xFF;
-      sb.append(hex[v >>> 4]);
-      sb.append(hex[v & 0x0F]);
-    }
-    return sb.toString();
-  }
-
-  /* =========================
-   * Tree walker (for verifications)
-   * ========================= */
-
-  private interface JsonWalker {
-    default void onNumber(JsonNode n, String path) {}
-  }
-
-  private static void walk(JsonNode n, JsonWalker w) {
-    walk(n, w, "$");
-  }
-
-  private static void walk(JsonNode n, JsonWalker w, String path) {
-    if (n == null || n.isNull()) return;
-
-    if (n.isNumber()) {
-      w.onNumber(n, path);
-      return;
-    }
-
-    if (n.isObject()) {
-      Iterator<Map.Entry<String, JsonNode>> fields = n.fields();
-      while (fields.hasNext()) {
-        Map.Entry<String, JsonNode> e = fields.next();
-        String p = path + "." + e.getKey();
-        walk(e.getValue(), w, p);
-      }
-      return;
-    }
-
-    if (n.isArray()) {
-      for (int i = 0; i < n.size(); i++) {
-        walk(n.get(i), w, path + "[" + i + "]");
-      }
-      return;
-    }
-
-    // textual/boolean ok; other types are handled during canonicalization
-  }
-
-  /* =========================
-   * Optional: decimal string helper (MFA-1)
-   * ========================= */
-
-  public static boolean isDecimalString(String s) {
-    return s != null && DECIMAL_STRING.matcher(s).matches();
-  }
-
-  /* =========================
-   * CLI harness
-   * ========================= */
-
-  public static void main(String[] args) throws Exception {
-    if (args.length != 1) {
-      System.err.println("Usage: java AsxJsonVerifier <input.json>");
-      System.exit(2);
-    }
-    String json = Files.readString(Path.of(args[0]), StandardCharsets.UTF_8);
-    JsonNode root = parseJson(json);
-
-    Result r = verifyAndHash(root);
-
-    // Print canonical JSON (UTF-8) then hash
-    System.out.write(r.canonicalBytes);
-    System.out.write('\n');
-    System.out.println("sha256=" + r.sha256Hex);
-  }
-
-  /* =========================
-   * Types
-   * ========================= */
-
-  public static final class Result {
-    public final byte[] canonicalBytes;
-    public final String sha256Hex;
-    public Result(byte[] canonicalBytes, String sha256Hex) {
-      this.canonicalBytes = canonicalBytes;
-      this.sha256Hex = sha256Hex;
-    }
-  }
-
-  public static final class AsxVerifyException extends RuntimeException {
-    public AsxVerifyException(String msg) { super(msg); }
-  }
-}
-```
-
-## Minimal build (Maven)
-
-```xml
-<dependencies>
-  <dependency>
-    <groupId>com.fasterxml.jackson.core</groupId>
-    <artifactId>jackson-databind</artifactId>
-    <version>2.17.2</version>
-  </dependency>
-</dependencies>
-```
-
-
-
 ### 3. XJSON
 - Surface serialization and transport form representing ASX structures as JSON envelopes.
 - Must lower deterministically into ASX-R-legal AST shapes; not itself the language.
@@ -389,6 +51,1098 @@ public final class AsxJsonVerifier {
 ### 8. ARS Classes
 - Structural types (schemas/templates) defining allowed fields, typing, and defaults.
 - Exclude methods, inheritance dispatch, and runtime polymorphism; used for typed state and deterministic validation.
+
+Locked. Below is a **Tokenizer + Grammar ABI v1** that makes your GGL/ARS/@-grammar pipelines **non-breakable** across JS/Python/Java, and across training/inference/checkpoints.
+
+Everything is **append-only** unless you bump MAJOR.
+
+---
+
+## ASX Tokenizer + Grammar ABI v1.0.0 (FROZEN)
+
+### Authority ladder
+
+1. **asx://canon/json.bytes.v1** decides bytes → hashes
+2. **Tokenizer ABI** decides ids ↔ strings ↔ special tokens
+3. **Grammar ABI** decides parseable surface forms → AST
+4. **Lowering ABI** decides AST → XCFE execution nodes
+5. Proof envelope binds them all.
+
+If any of these mismatch → **reject**, never “best effort”.
+
+---
+
+# 1) Tokenizer ABI (TABI-1)
+
+## 1.1 Required files (must travel together)
+
+A tokenizer set is valid only if all exist and match hashes:
+
+* `vocab.json` *(token → id, complete map)*
+* `id_to_token.json` *(id → token, complete map)*
+* `special_tokens.json` *(explicit special definitions)*
+* `normalization.json` *(exact normalization rules)*
+* `tokenizer.meta.json` *(ABI header + hashes)*
+
+No optional “sometimes we ship merges.txt”. If you use BPE/WordPiece internally, you still export **the final token↔id maps** above.
+
+---
+
+## 1.2 ABI header
+
+`tokenizer.meta.json` (machine-checkable)
+
+```json
+{
+  "@schema": "asx://schema/tokenizer.abi.v1",
+  "@id": "asx://tokenizer/abi/v1",
+  "@version": "1.0.0",
+  "@status": "frozen",
+
+  "abi": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+
+  "canon": {
+    "json_bytes": "asx://canon/json.bytes.v1",
+    "hash": "sha256"
+  },
+
+  "hashes": {
+    "vocab_json": "HEX_SHA256",
+    "id_to_token_json": "HEX_SHA256",
+    "special_tokens_json": "HEX_SHA256",
+    "normalization_json": "HEX_SHA256"
+  },
+
+  "special_ids": {
+    "PAD": 0,
+    "BOS": 1,
+    "EOS": 2,
+    "UNK": 3
+  },
+
+  "reserved_ranges": [
+    { "name": "core_special", "min": 0, "max": 63 },
+    { "name": "ggl_glyphs", "min": 64, "max": 8191 },
+    { "name": "ars_surface", "min": 8192, "max": 16383 },
+    { "name": "xjson_control", "min": 16384, "max": 32767 },
+    { "name": "text_base", "min": 32768, "max": 2000000 }
+  ],
+
+  "invariants": [
+    "special_ids_fixed",
+    "no_token_string_duplicates",
+    "no_id_duplicates",
+    "normalization_is_part_of_hash",
+    "decode_encode_roundtrip_for_all_non_control_tokens"
+  ]
+}
+```
+
+### TABI-1 invariant: Special IDs are immovable
+
+These IDs are **hard-fixed** across all time for this ABI major:
+
+* PAD=0, BOS=1, EOS=2, UNK=3
+
+If a model wants different IDs internally, it must map them, but ABI export must preserve these.
+
+---
+
+## 1.3 Token string law
+
+Token strings are **byte-meaningful**. No invisible normalization drift.
+
+**Allowed token classes (prefix-coded):**
+
+* `⟁GGL:` geometric glyph & operators (example: `⟁GGL:◯`, `⟁GGL:∪`)
+* `⟁ARS:` @-grammar surface tokens (example: `⟁ARS:@inference.pipeline`)
+* `⟁X:` XJSON control words (example: `⟁X:@schema`, `⟁X:@id`)
+* `TXT:` plain text tokens (model’s natural language tokens)
+
+This guarantees cross-domain disambiguation forever.
+
+---
+
+## 1.4 Normalization ABI (must be deterministic)
+
+`normalization.json` must declare **exact** steps. Example frozen defaults:
+
+```json
+{
+  "@schema": "asx://schema/tokenizer.normalization.v1",
+  "@version": "1.0.0",
+  "unicode": "NFC",
+  "newline": "LF",
+  "tab": "0x09",
+  "strip_bom": true,
+  "forbid": {
+    "unicode_classes": ["Cf"],
+    "codepoints": ["U+FEFF"]
+  },
+  "whitespace": {
+    "collapse_runs": false,
+    "trim": false
+  }
+}
+```
+
+**No runtime is allowed** to “helpfully” trim or collapse unless this file says so.
+
+---
+
+## 1.5 Compatibility rules (how you evolve without breaking)
+
+* **PATCH**: clarifications, docs, more examples. No token/id changes.
+* **MINOR**: append-only token additions **within reserved ranges**, never renumber.
+* **MAJOR**: any renumbering, changing special IDs, or changing normalization.
+
+---
+
+# 2) Grammar ABI (GABI-1)
+
+You have two surfaces:
+
+* **ARS.@** (line AST)
+* **GGL** (geometric AST)
+
+Both lower into XCFE nodes.
+
+## 2.1 Grammar pack header
+
+Every grammar ships as:
+
+* `grammar.meta.json`
+* `ars.at.schema.json` (asx://schema/ars.at.v1)
+* `ggl.ast.schema.json` (asx://schema/ggl.ast.v1)
+* `xcfe.ast.schema.json` (asx://schema/xcfe.ast.v1)
+* `lowering.rules.json` (asx://xcfe/lowering.rules.v1)
+
+`grammar.meta.json`:
+
+```json
+{
+  "@schema": "asx://schema/grammar.abi.v1",
+  "@id": "asx://grammar/abi/v1",
+  "@version": "1.0.0",
+  "@status": "frozen",
+
+  "abi": { "major": 1, "minor": 0, "patch": 0 },
+
+  "canon": {
+    "json_bytes": "asx://canon/json.bytes.v1",
+    "hash": "sha256"
+  },
+
+  "requires": {
+    "tokenizer_abi": "asx://tokenizer/abi/v1"
+  },
+
+  "hashes": {
+    "ars_at_schema": "HEX_SHA256",
+    "ggl_ast_schema": "HEX_SHA256",
+    "xcfe_ast_schema": "HEX_SHA256",
+    "lowering_rules": "HEX_SHA256"
+  },
+
+  "invariants": [
+    "surface_to_ast_deterministic",
+    "ast_to_xcfe_deterministic",
+    "no_implicit_nodes",
+    "all_identifiers_normalized_by_tokenizer_normalization"
+  ]
+}
+```
+
+---
+
+## 2.2 ARS.@ surface law (summary)
+
+* Input is **lines**
+* Each line is either:
+
+  * directive: `@name`
+  * kv: `key: value`
+  * block open/close implied by indentation
+* Output is `ars.at` AST (not free text)
+
+**Indentation law:** spaces only, 2-space steps, tabs forbidden unless explicitly enabled in normalization.
+
+---
+
+## 2.3 GGL surface law (summary)
+
+GGL can be authored as:
+
+* glyph-first (`◯ {r:"10"}`)
+* or structured JSON (already parsed)
+
+But **the canonical internal form** is `ggl.ast.v1`.
+
+### Decimal rule (your locked rule)
+
+All decimals are **strings** in AST:
+
+* `"10"`
+* `"0.25"`
+* `"3.14159"`
+  No floats allowed in AST.
+
+---
+
+# 3) ABI handshake and rejection rules
+
+## 3.1 Model checkpoint must declare ABI locks
+
+Every model / ggltensors / lora delta must include:
+
+```json
+{
+  "abi_lock": {
+    "tokenizer": {
+      "id": "asx://tokenizer/abi/v1",
+      "meta_hash": "HEX_SHA256(tokenizer.meta.json canonical bytes)",
+      "vocab_hash": "HEX_SHA256(vocab.json canonical bytes)"
+    },
+    "grammar": {
+      "id": "asx://grammar/abi/v1",
+      "meta_hash": "HEX_SHA256(grammar.meta.json canonical bytes)"
+    },
+    "canon": { "json_bytes": "asx://canon/json.bytes.v1" }
+  }
+}
+```
+
+## 3.2 Runtime acceptance rule
+
+A runtime accepts inference/training only if:
+
+* tokenizer ABI id matches
+* tokenizer.meta hashes match
+* grammar ABI id matches
+* grammar.meta hashes match
+
+Otherwise: **HARD FAIL** with a structured error:
+
+* `abi_mismatch.tokenizer`
+* `abi_mismatch.grammar`
+* `abi_mismatch.canon`
+
+No warning-only mode.
+
+---
+
+# 4) Practical fix for your current warning (PAD/BOS/EOS mismatch)
+
+That warning happens because HF model config and tokenizer disagree.
+
+With TABI-1:
+
+* ABI exports PAD/BOS/EOS fixed to 0/1/2/3
+* If HF wants different ids, you add a **shim mapping** in runtime only.
+
+### Shim contract (internal only; not part of ABI)
+
+```json
+{
+  "@type": "asx.runtime.token_shim.v1",
+  "maps": {
+    "abi_to_model": { "0": 32000, "1": 1, "2": 2, "3": 0 },
+    "model_to_abi": { "32000": 0, "1": 1, "2": 2, "0": 3 }
+  }
+}
+```
+
+ABI stays stable. Model stays whatever. Runtime bridges.
+
+---
+
+# 5) The one rule that prevents “silent break” forever
+
+### **Any change that alters canonical bytes changes the hash**
+
+So: you never “think it’s the same.” You prove it’s the same.
+
+**Lock statement:**
+
+* Tokenizer validity == hashes match
+* Grammar validity == hashes match
+* Execution validity == proof envelope binds those hashes
+
+That’s the end of drift.
+
+---
+
+# 6) Minimal implementation checklist (JS/Python/Java)
+
+To finalize this ABI in code, each verifier must implement:
+
+1. load `tokenizer.meta.json`
+2. canonicalize JSON bytes (asx://canon/json.bytes.v1)
+3. sha256 hash and compare
+4. enforce special id invariants
+5. enforce normalization invariants
+6. enforce decode(encode(token)) roundtrip for all non-control tokens
+
+Same for `grammar.meta.json` and schemas.
+
+---
+
+```json
+{
+  "$schema": "xjson://schema/core/v1",
+  "@id": "asx://schema/tokenizer.abi.v1",
+  "@type": "asx.schema",
+  "@version": "1.0.0",
+  "@status": "frozen",
+  "@title": "Tokenizer ABI Schema (TABI-1)",
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["@schema","@id","@version","@status","abi","canon","hashes","special_ids","reserved_ranges","invariants"],
+    "properties": {
+      "@schema": { "type": "string", "const": "asx://schema/tokenizer.abi.v1" },
+      "@id":     { "type": "string", "pattern": "^asx://tokenizer/abi/v1$" },
+      "@type":   { "type": "string", "const": "asx.tokenizer.abi" },
+      "@version":{ "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+      "@status": { "type": "string", "enum": ["frozen","draft"] },
+
+      "@note": { "type": "string" },
+
+      "abi": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["major","minor","patch"],
+        "properties": {
+          "major": { "type": "integer", "minimum": 1, "maximum": 1 },
+          "minor": { "type": "integer", "minimum": 0 },
+          "patch": { "type": "integer", "minimum": 0 }
+        }
+      },
+
+      "canon": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["json_bytes","hash"],
+        "properties": {
+          "json_bytes": { "type": "string", "const": "asx://canon/json.bytes.v1" },
+          "hash": { "type": "string", "enum": ["sha256"] }
+        }
+      },
+
+      "hashes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["vocab_json","id_to_token_json","special_tokens_json","normalization_json"],
+        "properties": {
+          "vocab_json": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+          "id_to_token_json": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+          "special_tokens_json": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+          "normalization_json": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+        }
+      },
+
+      "special_ids": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["PAD","BOS","EOS","UNK"],
+        "properties": {
+          "PAD": { "type": "integer", "const": 0 },
+          "BOS": { "type": "integer", "const": 1 },
+          "EOS": { "type": "integer", "const": 2 },
+          "UNK": { "type": "integer", "const": 3 }
+        }
+      },
+
+      "reserved_ranges": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name","min","max"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "min": { "type": "integer", "minimum": 0 },
+            "max": { "type": "integer", "minimum": 0 }
+          }
+        }
+      },
+
+      "token_string_law": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["allowed_prefixes","forbid_control_chars","require_prefix_for_non_text"],
+        "properties": {
+          "allowed_prefixes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": ["⟁GGL:","⟁ARS:","⟁X:","TXT:"]
+            }
+          },
+          "forbid_control_chars": { "type": "boolean", "const": true },
+          "require_prefix_for_non_text": { "type": "boolean", "const": true }
+        }
+      },
+
+      "normalization": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["unicode","newline","strip_bom","forbid","whitespace"],
+        "properties": {
+          "unicode": { "type": "string", "enum": ["NFC"] },
+          "newline": { "type": "string", "enum": ["LF"] },
+          "tab": { "type": "string", "pattern": "^0x[0-9a-fA-F]{2}$" },
+          "strip_bom": { "type": "boolean" },
+          "forbid": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["unicode_classes","codepoints"],
+            "properties": {
+              "unicode_classes": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "codepoints": {
+                "type": "array",
+                "items": { "type": "string", "pattern": "^U\\+[0-9A-F]{4,6}$" }
+              }
+            }
+          },
+          "whitespace": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["collapse_runs","trim"],
+            "properties": {
+              "collapse_runs": { "type": "boolean" },
+              "trim": { "type": "boolean" }
+            }
+          }
+        }
+      },
+
+      "invariants": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "enum": [
+            "special_ids_fixed",
+            "no_token_string_duplicates",
+            "no_id_duplicates",
+            "normalization_is_part_of_hash",
+            "decode_encode_roundtrip_for_all_non_control_tokens"
+          ]
+        }
+      }
+    }
+  }
+}
+```
+
+```json
+{
+  "$schema": "xjson://schema/core/v1",
+  "@id": "asx://schema/grammar.abi.v1",
+  "@type": "asx.schema",
+  "@version": "1.0.0",
+  "@status": "frozen",
+  "@title": "Grammar ABI Schema (GABI-1)",
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["@schema","@id","@version","@status","abi","canon","requires","hashes","invariants"],
+    "properties": {
+      "@schema": { "type": "string", "const": "asx://schema/grammar.abi.v1" },
+      "@id":     { "type": "string", "pattern": "^asx://grammar/abi/v1$" },
+      "@type":   { "type": "string", "const": "asx.grammar.abi" },
+      "@version":{ "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+      "@status": { "type": "string", "enum": ["frozen","draft"] },
+
+      "abi": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["major","minor","patch"],
+        "properties": {
+          "major": { "type": "integer", "minimum": 1, "maximum": 1 },
+          "minor": { "type": "integer", "minimum": 0 },
+          "patch": { "type": "integer", "minimum": 0 }
+        }
+      },
+
+      "canon": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["json_bytes","hash"],
+        "properties": {
+          "json_bytes": { "type": "string", "const": "asx://canon/json.bytes.v1" },
+          "hash": { "type": "string", "enum": ["sha256"] }
+        }
+      },
+
+      "requires": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tokenizer_abi"],
+        "properties": {
+          "tokenizer_abi": { "type": "string", "const": "asx://tokenizer/abi/v1" }
+        }
+      },
+
+      "hashes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ars_at_schema","ggl_ast_schema","xcfe_ast_schema","lowering_rules"],
+        "properties": {
+          "ars_at_schema":  { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+          "ggl_ast_schema": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+          "xcfe_ast_schema":{ "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+          "lowering_rules": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+        }
+      },
+
+      "surfaces": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ars_at","ggl"],
+        "properties": {
+          "ars_at": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["indent","tabs","line_endings"],
+            "properties": {
+              "indent": { "type": "integer", "const": 2 },
+              "tabs": { "type": "string", "const": "forbidden" },
+              "line_endings": { "type": "string", "const": "LF" }
+            }
+          },
+          "ggl": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["decimals","allow_json_input"],
+            "properties": {
+              "decimals": { "type": "string", "const": "string_only" },
+              "allow_json_input": { "type": "boolean", "const": true }
+            }
+          }
+        }
+      },
+
+      "invariants": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "enum": [
+            "surface_to_ast_deterministic",
+            "ast_to_xcfe_deterministic",
+            "no_implicit_nodes",
+            "all_identifiers_normalized_by_tokenizer_normalization"
+          ]
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+# Byte-exact acceptance/rejection pseudocode (JS/Python/Java)
+
+This is **the same algorithm** in all runtimes. Differences are only syntax.
+
+## Shared primitives
+
+### `CANON_JSON_BYTES(obj) -> bytes`
+
+* MUST implement `asx://canon/json.bytes.v1`
+* Output bytes are the **only** thing hashed.
+
+### `SHA256_HEX(bytes) -> 64-hex`
+
+* Lowercase hex recommended, but accept either case in input hashes (compare case-insensitive).
+
+### `LOAD_JSON(path) -> obj`
+
+* Parse UTF-8 JSON.
+* Reject duplicate keys if your parser can detect them (recommended). If not possible, you MUST canonicalize from the parsed object and hash *that*; still safe because mismatch will appear across implementations if duplicate keys are present, so best practice is reject duplicates.
+
+---
+
+## Verifier: Tokenizer ABI
+
+### Acceptance rules
+
+1. Load `tokenizer.meta.json`
+2. Validate it against `asx://schema/tokenizer.abi.v1` (structure)
+3. Enforce `special_ids` constants (0/1/2/3)
+4. Load the 4 required files:
+
+   * `vocab.json`
+   * `id_to_token.json`
+   * `special_tokens.json`
+   * `normalization.json`
+5. For each file:
+
+   * `canon = CANON_JSON_BYTES(obj)`
+   * `h = SHA256_HEX(canon)`
+   * compare to meta.hashes[...]
+6. Validate bijection:
+
+   * every token string unique
+   * every id unique
+   * `vocab[token] == id_to_token_inverse[token]`
+7. Enforce token string prefix law if enabled in meta:
+
+   * if token starts with `⟁GGL:` / `⟁ARS:` / `⟁X:` it’s non-text
+   * if token is non-text it MUST have one of those prefixes
+   * forbid C0 controls in token strings
+8. Roundtrip check for all non-control tokens:
+
+   * `decode(encode(token_string)) == token_string`
+   * (encode/decode defined as map lookups using exported maps; no model needed)
+
+### Reject codes
+
+* `reject.tokenizer.meta_schema_invalid`
+* `reject.tokenizer.hash_mismatch.<file>`
+* `reject.tokenizer.special_ids_mismatch`
+* `reject.tokenizer.not_bijective`
+* `reject.tokenizer.token_string_law`
+* `reject.tokenizer.roundtrip_failed`
+
+---
+
+## Verifier: Grammar ABI
+
+### Acceptance rules
+
+1. Load `grammar.meta.json`
+2. Validate it against `asx://schema/grammar.abi.v1`
+3. Require tokenizer ABI id: `asx://tokenizer/abi/v1`
+4. Load and hash the 4 required artifacts:
+
+   * `ars.at.schema.json`
+   * `ggl.ast.schema.json`
+   * `xcfe.ast.schema.json`
+   * `lowering.rules.json`
+     compare to meta.hashes
+5. Enforce surface invariants:
+
+   * ARS indent=2, tabs forbidden, LF
+   * GGL decimals string-only
+
+### Reject codes
+
+* `reject.grammar.meta_schema_invalid`
+* `reject.grammar.requires_tokenizer_abi_mismatch`
+* `reject.grammar.hash_mismatch.<artifact>`
+* `reject.grammar.surface_invariant_violation`
+
+---
+
+## Combined ABI gate (used by training/inference/checkpoints)
+
+### Inputs
+
+* runtime ships a `{tokenizer.meta.json, grammar.meta.json}` pair
+* artifact/checkpoint declares `abi_lock` with meta hashes
+
+### Acceptance
+
+* Verify runtime tokenizer + grammar as above
+* Verify artifact `abi_lock`:
+
+  * `abi_lock.tokenizer.id == asx://tokenizer/abi/v1`
+  * `abi_lock.grammar.id == asx://grammar/abi/v1`
+  * `abi_lock.tokenizer.meta_hash == SHA256_HEX(CANON_JSON_BYTES(tokenizer.meta))`
+  * `abi_lock.grammar.meta_hash == SHA256_HEX(CANON_JSON_BYTES(grammar.meta))`
+  * (optional) also check `vocab_hash` if present
+
+### Reject
+
+* `reject.abi_lock.missing`
+* `reject.abi_lock.id_mismatch`
+* `reject.abi_lock.meta_hash_mismatch`
+* `reject.abi_lock.vocab_hash_mismatch`
+
+---
+
+# JS pseudocode (exact)
+
+```js
+function verifyTokenizerABI(paths) {
+  const meta = loadJson(paths.tokenizerMeta);
+  assertSchema(meta, "asx://schema/tokenizer.abi.v1", "reject.tokenizer.meta_schema_invalid");
+
+  // special ids hard law
+  if (meta.special_ids.PAD !== 0 || meta.special_ids.BOS !== 1 || meta.special_ids.EOS !== 2 || meta.special_ids.UNK !== 3) {
+    throwErr("reject.tokenizer.special_ids_mismatch");
+  }
+
+  const files = [
+    ["vocab_json", paths.vocabJson],
+    ["id_to_token_json", paths.idToTokenJson],
+    ["special_tokens_json", paths.specialTokensJson],
+    ["normalization_json", paths.normalizationJson]
+  ];
+
+  const objs = {};
+  for (const [k, p] of files) {
+    const obj = loadJson(p);
+    const canon = canonJsonBytes(obj); // asx://canon/json.bytes.v1
+    const h = sha256Hex(canon);
+    if (!eqHex(h, meta.hashes[k])) throwErr(`reject.tokenizer.hash_mismatch.${k}`);
+    objs[k] = obj;
+  }
+
+  // bijection checks
+  const vocab = objs.vocab_json;
+  const idToTok = objs.id_to_token_json;
+
+  const seenTokens = new Set();
+  const seenIds = new Set();
+
+  for (const [tok, id] of Object.entries(vocab)) {
+    if (seenTokens.has(tok)) throwErr("reject.tokenizer.not_bijective");
+    seenTokens.add(tok);
+    if (seenIds.has(String(id))) throwErr("reject.tokenizer.not_bijective");
+    seenIds.add(String(id));
+    if (String(idToTok[id]) !== tok) throwErr("reject.tokenizer.not_bijective");
+
+    // token string law (prefix + control chars)
+    if (meta.token_string_law && meta.token_string_law.forbid_control_chars) {
+      for (let i = 0; i < tok.length; i++) {
+        const c = tok.charCodeAt(i);
+        if (c <= 0x1F || c === 0x7F) throwErr("reject.tokenizer.token_string_law");
+      }
+    }
+    if (meta.token_string_law && meta.token_string_law.require_prefix_for_non_text) {
+      const isNonText = tok.startsWith("⟁GGL:") || tok.startsWith("⟁ARS:") || tok.startsWith("⟁X:");
+      const isText = tok.startsWith("TXT:");
+      if (!isNonText && !isText) throwErr("reject.tokenizer.token_string_law");
+    }
+
+    // roundtrip (map lookup encode/decode)
+    const enc = vocab[tok];
+    const dec = idToTok[enc];
+    if (dec !== tok) throwErr("reject.tokenizer.roundtrip_failed");
+  }
+
+  return { ok: true, meta };
+}
+
+function verifyGrammarABI(paths, tokenizerMeta) {
+  const meta = loadJson(paths.grammarMeta);
+  assertSchema(meta, "asx://schema/grammar.abi.v1", "reject.grammar.meta_schema_invalid");
+
+  if (meta.requires.tokenizer_abi !== "asx://tokenizer/abi/v1") {
+    throwErr("reject.grammar.requires_tokenizer_abi_mismatch");
+  }
+
+  const artifacts = [
+    ["ars_at_schema", paths.arsAtSchema],
+    ["ggl_ast_schema", paths.gglAstSchema],
+    ["xcfe_ast_schema", paths.xcfeAstSchema],
+    ["lowering_rules", paths.loweringRules]
+  ];
+
+  for (const [k, p] of artifacts) {
+    const obj = loadJson(p);
+    const canon = canonJsonBytes(obj);
+    const h = sha256Hex(canon);
+    if (!eqHex(h, meta.hashes[k])) throwErr(`reject.grammar.hash_mismatch.${k}`);
+  }
+
+  // surface invariants (hard)
+  if (meta.surfaces.ars_at.indent !== 2 || meta.surfaces.ars_at.tabs !== "forbidden" || meta.surfaces.ars_at.line_endings !== "LF") {
+    throwErr("reject.grammar.surface_invariant_violation");
+  }
+  if (meta.surfaces.ggl.decimals !== "string_only") {
+    throwErr("reject.grammar.surface_invariant_violation");
+  }
+
+  return { ok: true, meta };
+}
+
+function verifyABILock(abiLock, tokenizerMetaObj, grammarMetaObj) {
+  if (!abiLock) throwErr("reject.abi_lock.missing");
+  if (abiLock.tokenizer.id !== "asx://tokenizer/abi/v1") throwErr("reject.abi_lock.id_mismatch");
+  if (abiLock.grammar.id !== "asx://grammar/abi/v1") throwErr("reject.abi_lock.id_mismatch");
+
+  const tMetaHash = sha256Hex(canonJsonBytes(tokenizerMetaObj));
+  const gMetaHash = sha256Hex(canonJsonBytes(grammarMetaObj));
+
+  if (!eqHex(tMetaHash, abiLock.tokenizer.meta_hash)) throwErr("reject.abi_lock.meta_hash_mismatch");
+  if (!eqHex(gMetaHash, abiLock.grammar.meta_hash)) throwErr("reject.abi_lock.meta_hash_mismatch");
+
+  if (abiLock.tokenizer.vocab_hash) {
+    // vocab_hash must be computed from vocab.json canonical bytes
+    // caller passes computed value or does it here
+  }
+
+  return { ok: true };
+}
+```
+
+---
+
+# Python pseudocode (exact)
+
+```python
+def verify_tokenizer_abi(paths):
+    meta = load_json(paths["tokenizer_meta"])
+    assert_schema(meta, "asx://schema/tokenizer.abi.v1", "reject.tokenizer.meta_schema_invalid")
+
+    if meta["special_ids"] != {"PAD":0,"BOS":1,"EOS":2,"UNK":3}:
+        raise_err("reject.tokenizer.special_ids_mismatch")
+
+    files = [
+        ("vocab_json", paths["vocab_json"]),
+        ("id_to_token_json", paths["id_to_token_json"]),
+        ("special_tokens_json", paths["special_tokens_json"]),
+        ("normalization_json", paths["normalization_json"]),
+    ]
+
+    objs = {}
+    for key, p in files:
+        obj = load_json(p)
+        canon = canon_json_bytes(obj)  # asx://canon/json.bytes.v1
+        h = sha256_hex(canon)
+        if not eq_hex(h, meta["hashes"][key]):
+            raise_err(f"reject.tokenizer.hash_mismatch.{key}")
+        objs[key] = obj
+
+    vocab = objs["vocab_json"]
+    id_to_tok = objs["id_to_token_json"]
+
+    seen_tokens = set()
+    seen_ids = set()
+
+    for tok, idv in vocab.items():
+        if tok in seen_tokens: raise_err("reject.tokenizer.not_bijective")
+        seen_tokens.add(tok)
+        sid = str(idv)
+        if sid in seen_ids: raise_err("reject.tokenizer.not_bijective")
+        seen_ids.add(sid)
+        if str(id_to_tok.get(str(idv), id_to_tok.get(idv))) != tok:
+            raise_err("reject.tokenizer.not_bijective")
+
+        tsl = meta.get("token_string_law")
+        if tsl and tsl.get("forbid_control_chars"):
+            for ch in tok:
+                c = ord(ch)
+                if c <= 0x1F or c == 0x7F:
+                    raise_err("reject.tokenizer.token_string_law")
+
+        if tsl and tsl.get("require_prefix_for_non_text"):
+            is_non = tok.startswith("⟁GGL:") or tok.startswith("⟁ARS:") or tok.startswith("⟁X:")
+            is_txt = tok.startswith("TXT:")
+            if not (is_non or is_txt):
+                raise_err("reject.tokenizer.token_string_law")
+
+        enc = vocab[tok]
+        dec = id_to_tok.get(str(enc), id_to_tok.get(enc))
+        if dec != tok:
+            raise_err("reject.tokenizer.roundtrip_failed")
+
+    return {"ok": True, "meta": meta}
+
+
+def verify_grammar_abi(paths):
+    meta = load_json(paths["grammar_meta"])
+    assert_schema(meta, "asx://schema/grammar.abi.v1", "reject.grammar.meta_schema_invalid")
+
+    if meta["requires"]["tokenizer_abi"] != "asx://tokenizer/abi/v1":
+        raise_err("reject.grammar.requires_tokenizer_abi_mismatch")
+
+    artifacts = [
+        ("ars_at_schema", paths["ars_at_schema"]),
+        ("ggl_ast_schema", paths["ggl_ast_schema"]),
+        ("xcfe_ast_schema", paths["xcfe_ast_schema"]),
+        ("lowering_rules", paths["lowering_rules"]),
+    ]
+    for key, p in artifacts:
+        obj = load_json(p)
+        canon = canon_json_bytes(obj)
+        h = sha256_hex(canon)
+        if not eq_hex(h, meta["hashes"][key]):
+            raise_err(f"reject.grammar.hash_mismatch.{key}")
+
+    s = meta.get("surfaces", {})
+    if s.get("ars_at", {}).get("indent") != 2 or s.get("ars_at", {}).get("tabs") != "forbidden" or s.get("ars_at", {}).get("line_endings") != "LF":
+        raise_err("reject.grammar.surface_invariant_violation")
+    if s.get("ggl", {}).get("decimals") != "string_only":
+        raise_err("reject.grammar.surface_invariant_violation")
+
+    return {"ok": True, "meta": meta}
+
+
+def verify_abi_lock(abi_lock, tokenizer_meta_obj, grammar_meta_obj):
+    if not abi_lock:
+        raise_err("reject.abi_lock.missing")
+    if abi_lock["tokenizer"]["id"] != "asx://tokenizer/abi/v1":
+        raise_err("reject.abi_lock.id_mismatch")
+    if abi_lock["grammar"]["id"] != "asx://grammar/abi/v1":
+        raise_err("reject.abi_lock.id_mismatch")
+
+    t_hash = sha256_hex(canon_json_bytes(tokenizer_meta_obj))
+    g_hash = sha256_hex(canon_json_bytes(grammar_meta_obj))
+
+    if not eq_hex(t_hash, abi_lock["tokenizer"]["meta_hash"]):
+        raise_err("reject.abi_lock.meta_hash_mismatch")
+    if not eq_hex(g_hash, abi_lock["grammar"]["meta_hash"]):
+        raise_err("reject.abi_lock.meta_hash_mismatch")
+
+    return {"ok": True}
+```
+
+---
+
+# Java pseudocode (exact)
+
+```java
+// PSEUDOCODE: same logic, concrete libs left to your build (Jackson/Gson).
+// MUST use asx://canon/json.bytes.v1 canonicalizer to generate bytes for hashing.
+
+class AbiVerify {
+
+  static VerifyResult verifyTokenizerAbi(Paths p) {
+    JsonObject meta = loadJson(p.tokenizerMeta);
+    assertSchema(meta, "asx://schema/tokenizer.abi.v1", "reject.tokenizer.meta_schema_invalid");
+
+    JsonObject special = meta.getObj("special_ids");
+    if (special.getInt("PAD") != 0 || special.getInt("BOS") != 1 || special.getInt("EOS") != 2 || special.getInt("UNK") != 3) {
+      throwErr("reject.tokenizer.special_ids_mismatch");
+    }
+
+    String[][] files = new String[][] {
+      {"vocab_json", p.vocabJson},
+      {"id_to_token_json", p.idToTokenJson},
+      {"special_tokens_json", p.specialTokensJson},
+      {"normalization_json", p.normalizationJson}
+    };
+
+    Map<String, JsonObject> objs = new HashMap<>();
+    for (String[] kv : files) {
+      String key = kv[0];
+      String path = kv[1];
+      JsonObject obj = loadJson(path);
+      byte[] canon = canonJsonBytes(obj); // asx://canon/json.bytes.v1
+      String h = sha256Hex(canon);
+      String expected = meta.getObj("hashes").getString(key);
+      if (!eqHex(h, expected)) throwErr("reject.tokenizer.hash_mismatch." + key);
+      objs.put(key, obj);
+    }
+
+    JsonObject vocab = objs.get("vocab_json");
+    JsonObject idToTok = objs.get("id_to_token_json");
+
+    Set<String> seenTok = new HashSet<>();
+    Set<String> seenId = new HashSet<>();
+
+    JsonObject tsl = meta.optObj("token_string_law");
+
+    for (String tok : vocab.keys()) {
+      String id = vocab.get(tok).asString(); // accept int or string; normalize to string
+      if (!seenTok.add(tok)) throwErr("reject.tokenizer.not_bijective");
+      if (!seenId.add(id)) throwErr("reject.tokenizer.not_bijective");
+
+      String dec = idToTok.getString(id);
+      if (dec == null || !dec.equals(tok)) throwErr("reject.tokenizer.not_bijective");
+
+      if (tsl != null && tsl.getBool("forbid_control_chars")) {
+        for (int i = 0; i < tok.length(); i++) {
+          int c = tok.charAt(i);
+          if (c <= 0x1F || c == 0x7F) throwErr("reject.tokenizer.token_string_law");
+        }
+      }
+      if (tsl != null && tsl.getBool("require_prefix_for_non_text")) {
+        boolean isNon = tok.startsWith("⟁GGL:") || tok.startsWith("⟁ARS:") || tok.startsWith("⟁X:");
+        boolean isTxt = tok.startsWith("TXT:");
+        if (!(isNon || isTxt)) throwErr("reject.tokenizer.token_string_law");
+      }
+
+      // roundtrip via exported maps
+      String enc = vocab.get(tok).asString();
+      String back = idToTok.getString(enc);
+      if (back == null || !back.equals(tok)) throwErr("reject.tokenizer.roundtrip_failed");
+    }
+
+    return VerifyResult.ok(meta);
+  }
+
+  static VerifyResult verifyGrammarAbi(Paths p) {
+    JsonObject meta = loadJson(p.grammarMeta);
+    assertSchema(meta, "asx://schema/grammar.abi.v1", "reject.grammar.meta_schema_invalid");
+
+    if (!meta.getObj("requires").getString("tokenizer_abi").equals("asx://tokenizer/abi/v1")) {
+      throwErr("reject.grammar.requires_tokenizer_abi_mismatch");
+    }
+
+    String[][] artifacts = new String[][] {
+      {"ars_at_schema", p.arsAtSchema},
+      {"ggl_ast_schema", p.gglAstSchema},
+      {"xcfe_ast_schema", p.xcfeAstSchema},
+      {"lowering_rules", p.loweringRules}
+    };
+
+    for (String[] kv : artifacts) {
+      String key = kv[0];
+      String path = kv[1];
+      JsonObject obj = loadJson(path);
+      byte[] canon = canonJsonBytes(obj);
+      String h = sha256Hex(canon);
+      String expected = meta.getObj("hashes").getString(key);
+      if (!eqHex(h, expected)) throwErr("reject.grammar.hash_mismatch." + key);
+    }
+
+    JsonObject s = meta.getObj("surfaces");
+    JsonObject ars = s.getObj("ars_at");
+    if (ars.getInt("indent") != 2 || !ars.getString("tabs").equals("forbidden") || !ars.getString("line_endings").equals("LF")) {
+      throwErr("reject.grammar.surface_invariant_violation");
+    }
+    JsonObject ggl = s.getObj("ggl");
+    if (!ggl.getString("decimals").equals("string_only")) {
+      throwErr("reject.grammar.surface_invariant_violation");
+    }
+
+    return VerifyResult.ok(meta);
+  }
+
+  static VerifyResult verifyAbiLock(JsonObject abiLock, JsonObject tokMeta, JsonObject gramMeta) {
+    if (abiLock == null) throwErr("reject.abi_lock.missing");
+
+    if (!abiLock.getObj("tokenizer").getString("id").equals("asx://tokenizer/abi/v1")) throwErr("reject.abi_lock.id_mismatch");
+    if (!abiLock.getObj("grammar").getString("id").equals("asx://grammar/abi/v1")) throwErr("reject.abi_lock.id_mismatch");
+
+    String tokMetaHash = sha256Hex(canonJsonBytes(tokMeta));
+    String gramMetaHash = sha256Hex(canonJsonBytes(gramMeta));
+
+    if (!eqHex(tokMetaHash, abiLock.getObj("tokenizer").getString("meta_hash"))) throwErr("reject.abi_lock.meta_hash_mismatch");
+    if (!eqHex(gramMetaHash, abiLock.getObj("grammar").getString("meta_hash"))) throwErr("reject.abi_lock.meta_hash_mismatch");
+
+    return VerifyResult.ok(null);
+  }
+}
+```
+
+---
+
+## Notes for byte-exactness
+
+* All hashes are computed over **canonical JSON bytes** (asx://canon/json.bytes.v1), never raw file bytes.
+* Compare hashes case-insensitively (`[A-F]` allowed).
+* Decimal-as-string is enforced at the **grammar surface contract**; MFA-1 parses strings only.
+
+
+
 
 ### 9. ASX Geometry
 - Structural geometry layer defining spaces (2D/3D), shapes, and coordinate semantics.
