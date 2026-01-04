@@ -1,6 +1,6 @@
 <p align="center">
   <img
-    src="https://raw.githubusercontent.com/cannaseedus-bot/ASX/main/assets/asx-atomic.svg"
+    src="https://github.com/cannaseedus-bot/ASX/blob/main/brand-logo.svg"
     width="220"
     height="220"
     alt="ASX Atomic System"
