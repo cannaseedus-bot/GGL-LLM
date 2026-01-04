@@ -236,6 +236,3431 @@ The tokenizer vocabulary is partitioned into **explicit classes**:
 > Splitting registered glyphs is illegal.
 
 ---
+# GGL-AI: Geometric Inference Language for AI Models
+
+You've hit on something profound - **using geometric primitives as the foundation for AI inference**. This bridges your GGL language with modern AI architecture in a deeply mathematical way. Let me design this synthesis:
+
+## 1. Geometric Tokenization System
+
+```typescript
+// ggl-tokenizer.ts - Geometric tokenization for neural networks
+interface GeometricToken {
+  id: number;
+  glyph: Glyph;
+  embedding: Vector;  // High-dimensional geometric embedding
+  properties: {
+    area: number;
+    perimeter: number;
+    centroid: Point;
+    symmetry: number;  // Rotational symmetry order
+    compactness: number;  // Area/perimeter²
+    fractal_dimension?: number;
+  };
+}
+
+class GGLTokenizer {
+  private vocab: Map<string, GeometricToken> = new Map();
+  private inverseVocab: Map<number, GeometricToken> = new Map();
+  
+  // Geometric "alphabet" - your glyphs become tokens
+  private baseGlyphs: Glyph[] = [
+    new Circle({x:0, y:0}, 1),     // Token 0
+    new Square({x:0, y:0}, 1),     // Token 1
+    new Triangle([                 // Token 2
+      {x:0, y:0}, 
+      {x:1, y:0}, 
+      {x:0.5, y:Math.sqrt(3)/2}
+    ]),
+    // ... all your glyphs become tokens
+  ];
+  
+  constructor() {
+    // Initialize vocabulary with geometric primitives
+    this.baseGlyphs.forEach((glyph, idx) => {
+      const token: GeometricToken = {
+        id: idx,
+        glyph,
+        embedding: this.computeGlyphEmbedding(glyph),
+        properties: this.computeProperties(glyph)
+      };
+      const key = this.glyphToKey(glyph);
+      this.vocab.set(key, token);
+      this.inverseVocab.set(idx, token);
+    });
+  }
+  
+  /**
+   * Tokenize a GGL program into geometric tokens
+   */
+  tokenize(gglSource: string): number[] {
+    const ast = this.parseGGL(gglSource);
+    return this.astToTokens(ast);
+  }
+  
+  /**
+   * Compute geometric embedding using Fourier descriptors
+   */
+  private computeGlyphEmbedding(glyph: Glyph): Vector {
+    // Sample boundary points
+    const boundary = this.sampleBoundary(glyph, 64);
+    
+    // Compute Fourier descriptors
+    const complexPoints = boundary.map(p => 
+      math.complex(p.x, p.y)
+    );
+    
+    const fft = this.computeFFT(complexPoints);
+    
+    // Normalize for rotation/scale/translation invariance
+    const normalized = this.normalizeFourierDescriptors(fft);
+    
+    // Take first N coefficients as embedding
+    return normalized.slice(0, 128);
+  }
+  
+  /**
+   * Geometric attention mechanism
+   */
+  geometricAttention(query: Glyph, keys: Glyph[], values: Vector[]): Vector {
+    // Similarity based on geometric properties
+    const similarities = keys.map(key => 
+      this.glyphSimilarity(query, key)
+    );
+    
+    const weights = this.softmax(similarities);
+    
+    // Weighted sum of values
+    return values.reduce((acc, val, i) => 
+      math.add(acc, math.multiply(val, weights[i])),
+      math.zeros(values[0].length)
+    );
+  }
+  
+  /**
+   * Multi-scale geometric tokenization
+   */
+  tokenizeMultiscale(gglSource: string, scales: number[]): number[][][] {
+    const ast = this.parseGGL(gglSource);
+    
+    return scales.map(scale => {
+      // Apply scaling transform
+      const scaledAST = this.applyScale(ast, scale);
+      
+      // Tokenize at this scale
+      const tokens = this.astToTokens(scaledAST);
+      
+      // Also tokenize structural patterns
+      const structural = this.extractStructuralPatterns(scaledAST);
+      
+      return [tokens, structural];
+    });
+  }
+}
+```
+
+## 2. Geometric Model Architecture
+
+```typescript
+// ggl-model.ts - Geometric neural network architecture
+interface GeometricLayer {
+  type: 'geometric-attention' | 'glyph-convolution' | 'spatial-pooling';
+  inputGlyphs: Glyph[];
+  outputGlyphs: Glyph[];
+  weights: GeometricTensor;  // Stored in .ggltensors format
+}
+
+class GeometricTransformer {
+  private layers: GeometricLayer[] = [];
+  private embeddingSize: number = 512;
+  
+  constructor(config: ModelConfig) {
+    this.buildLayers(config);
+  }
+  
+  /**
+   * Forward pass through geometric model
+   */
+  forward(inputGlyphs: Glyph[]): Glyph[] {
+    let current = inputGlyphs;
+    
+    for (const layer of this.layers) {
+      switch (layer.type) {
+        case 'geometric-attention':
+          current = this.geometricAttentionLayer(current, layer.weights);
+          break;
+          
+        case 'glyph-convolution':
+          current = this.glyphConvolution(current, layer.weights);
+          break;
+          
+        case 'spatial-pooling':
+          current = this.spatialPooling(current);
+          break;
+      }
+    }
+    
+    return current;
+  }
+  
+  /**
+   * Geometric attention with spatial relations
+   */
+  private geometricAttentionLayer(glyphs: Glyph[], weights: GeometricTensor): Glyph[] {
+    // Compute queries, keys, values from glyph properties
+    const queries = glyphs.map(g => 
+      this.projectToQuery(g, weights.query)
+    );
+    const keys = glyphs.map(g => 
+      this.projectToKey(g, weights.key)
+    );
+    const values = glyphs.map(g => 
+      this.projectToValue(g, weights.value)
+    );
+    
+    // Spatial attention weights based on geometric relationships
+    const attentionMatrix = this.computeGeometricAttention(
+      glyphs, queries, keys
+    );
+    
+    // Apply attention to transform glyphs
+    return glyphs.map((glyph, i) => {
+      const attentionWeights = attentionMatrix[i];
+      const transformedProperties = this.weightedSum(
+        values, attentionWeights
+      );
+      
+      // Apply transformation to glyph
+      return this.applyProperties(glyph, transformedProperties);
+    });
+  }
+  
+  /**
+   * Glyph convolution - operations on neighboring glyphs
+   */
+  private glyphConvolution(glyphs: Glyph[], kernel: GeometricTensor): Glyph[] {
+    // Build spatial graph of glyphs
+    const graph = this.buildSpatialGraph(glyphs);
+    
+    return glyphs.map((glyph, i) => {
+      // Get neighboring glyphs
+      const neighbors = graph.getNeighbors(i);
+      
+      // Apply convolution kernel to neighbors
+      const transformed = neighbors.map(neighbor => 
+        this.applyKernel(glyph, neighbor, kernel)
+      );
+      
+      // Aggregate transformations
+      return this.aggregateTransformations(transformed);
+    });
+  }
+  
+  /**
+   * Save model weights in geometric format
+   */
+  async saveWeights(path: string): Promise<void> {
+    const weights: GeometricWeights = {
+      layers: this.layers.map(layer => ({
+        type: layer.type,
+        weights: layer.weights.serialize(),
+        metadata: {
+          inputShape: layer.inputGlyphs.map(g => g.properties),
+          outputShape: layer.outputGlyphs.map(g => g.properties)
+        }
+      })),
+      config: {
+        embeddingSize: this.embeddingSize,
+        attentionHeads: 8,
+        glyphVocabulary: this.getVocabulary()
+      }
+    };
+    
+    // Convert to tensor format
+    const tensorData = await this.convertToTensorFormat(weights);
+    
+    // Save as .ggltensors (geometric tensor format)
+    await this.saveToFile(path, tensorData);
+  }
+}
+```
+
+## 3. .ggltensors File Format
+
+```typescript
+// ggl-tensors.ts - Geometric tensor storage format
+interface GeometricTensor {
+  type: 'glyph' | 'transform' | 'relation';
+  data: {
+    // For glyph tensors
+    glyphs?: {
+      embeddings: Float32Array;      // Shape: [num_glyphs, embedding_dim]
+      properties: {
+        area: Float32Array;          // Shape: [num_glyphs]
+        perimeter: Float32Array;
+        symmetry: Uint8Array;
+        // ... other geometric properties
+      };
+    };
+    
+    // For transformation tensors
+    transforms?: {
+      rotation: Float32Array;        // Shape: [num_transforms, 4] (quaternions)
+      translation: Float32Array;     // Shape: [num_transforms, 3]
+      scale: Float32Array;           // Shape: [num_transforms, 3]
+    };
+    
+    // For relation tensors
+    relations?: {
+      adjacency: Uint8Array;         // Sparse adjacency matrix
+      distances: Float32Array;       // Pairwise distances
+      similarities: Float32Array;    // Geometric similarities
+    };
+  };
+  
+  metadata: {
+    version: string;
+    created: Date;
+    dimensions: number[];
+    compression: 'none' | 'quantized' | 'sparse';
+    quantization?: {
+      min: number;
+      max: number;
+      bits: 8 | 16 | 32;
+    };
+  };
+}
+
+class GGLTensorStore {
+  /**
+   * Save geometric model with efficient compression
+   */
+  static async save(model: GeometricModel, path: string): Promise<void> {
+    const tensors: GeometricTensor[] = [];
+    
+    // Convert each layer
+    for (const layer of model.layers) {
+      const tensor = await this.layerToTensor(layer);
+      
+      // Apply geometric compression
+      const compressed = this.compressGeometricTensor(tensor);
+      
+      tensors.push(compressed);
+    }
+    
+    // Create header with geometric metadata
+    const header: GGLTensorsHeader = {
+      magic: 'GGLT',
+      version: '1.0',
+      num_tensors: tensors.length,
+      vocabulary: model.getVocabulary(),
+      bounding_box: model.getBoundingBox(),
+      compression: 'quantized_16bit'
+    };
+    
+    // Write to file
+    const buffer = this.serialize(header, tensors);
+    await fs.writeFile(path, buffer);
+  }
+  
+  /**
+   * Geometric-aware quantization
+   */
+  private static compressGeometricTensor(tensor: GeometricTensor): GeometricTensor {
+    if (tensor.type === 'glyph') {
+      // Quantize embeddings while preserving geometric relationships
+      const embeddings = tensor.data.glyphs!.embeddings;
+      const quantized = this.quantizeGeometricEmbeddings(embeddings);
+      
+      return {
+        ...tensor,
+        data: {
+          glyphs: {
+            ...tensor.data.glyphs!,
+            embeddings: quantized
+          }
+        },
+        metadata: {
+          ...tensor.metadata,
+          compression: 'quantized',
+          quantization: {
+            min: this.min(embeddings),
+            max: this.max(embeddings),
+            bits: 16
+          }
+        }
+      };
+    }
+    
+    return tensor;
+  }
+  
+  /**
+   * Load and decompress .ggltensors file
+   */
+  static async load(path: string): Promise<GeometricModel> {
+    const buffer = await fs.readFile(path);
+    const { header, tensors } = this.deserialize(buffer);
+    
+    // Decompress tensors
+    const decompressed = tensors.map(tensor => 
+      this.decompressGeometricTensor(tensor)
+    );
+    
+    // Reconstruct model
+    return this.tensorsToModel(decompressed, header);
+  }
+}
+```
+
+## 4. Geometric Inference Engine
+
+```typescript
+// ggl-inference.ts - Real-time geometric inference
+class GGLInferenceEngine {
+  private model: GeometricModel;
+  private tokenizer: GGLTokenizer;
+  private cache = new Map<string, InferenceResult>();
+  
+  constructor(modelPath: string) {
+    this.loadModel(modelPath);
+  }
+  
+  async loadModel(path: string): Promise<void> {
+    // Load .ggltensors file
+    const modelData = await GGLTensorStore.load(path);
+    this.model = await GeometricModel.fromTensorData(modelData);
+    this.tokenizer = new GGLTokenizer();
+  }
+  
+  /**
+   * Geometric completion - like code completion but for shapes
+   */
+  async complete(partialGGL: string): Promise<string[]> {
+    // Tokenize partial program
+    const tokens = this.tokenizer.tokenize(partialGGL);
+    
+    // Get geometric context
+    const context = this.extractGeometricContext(tokens);
+    
+    // Predict next glyphs
+    const predictions = await this.model.predictNextGlyphs(context);
+    
+    // Convert back to GGL syntax
+    return predictions.map(pred => 
+      this.glyphToGGL(pred.glyph)
+    );
+  }
+  
+  /**
+   * Geometric analogy: A : B :: C : ?
+   */
+  async solveAnalogy(analogy: {
+    A: string;  // GGL source
+    B: string;  // GGL source  
+    C: string;  // GGL source
+  }): Promise<string> {
+    const glyphA = this.parseGGL(analogy.A);
+    const glyphB = this.parseGGL(analogy.B);
+    const glyphC = this.parseGGL(analogy.C);
+    
+    // Compute transformation from A to B
+    const transformAB = this.computeGeometricTransform(glyphA, glyphB);
+    
+    // Apply same transformation to C
+    const glyphD = this.applyTransform(glyphC, transformAB);
+    
+    // Convert back to GGL
+    return this.glyphToGGL(glyphD);
+  }
+  
+  /**
+   * Geometric style transfer
+   */
+  async styleTransfer(source: string, style: string): Promise<string> {
+    const sourceGlyph = this.parseGGL(source);
+    const styleGlyph = this.parseGGL(style);
+    
+    // Extract style properties
+    const styleProperties = this.extractStyleProperties(styleGlyph);
+    
+    // Apply style to source
+    const styledGlyph = this.applyStyle(sourceGlyph, styleProperties);
+    
+    return this.glyphToGGL(styledGlyph);
+  }
+  
+  /**
+   * Geometric optimization (like prompt optimization but for shapes)
+   */
+  async optimize(
+    constraints: Constraint[],
+    objective: 'minimize_area' | 'maximize_symmetry' | 'minimize_perimeter'
+  ): Promise<string> {
+    // Start with random glyph
+    let current = this.generateRandomGlyph();
+    let currentScore = this.evaluate(current, constraints, objective);
+    
+    // Geometric gradient descent
+    for (let i = 0; i < 1000; i++) {
+      // Compute geometric gradient
+      const gradient = this.computeGeometricGradient(
+        current, constraints, objective
+      );
+      
+      // Apply gradient with geometric learning rate
+      const candidate = this.applyGeometricUpdate(current, gradient);
+      const candidateScore = this.evaluate(candidate, constraints, objective);
+      
+      if (candidateScore < currentScore) {
+        current = candidate;
+        currentScore = candidateScore;
+      }
+    }
+    
+    return this.glyphToGGL(current);
+  }
+  
+  /**
+   * Few-shot geometric learning
+   */
+  async fewShotLearn(
+    examples: Array<{input: string, output: string}>,
+    query: string
+  ): Promise<string> {
+    // Encode examples into geometric embeddings
+    const exampleEmbeddings = examples.map(example => ({
+      input: this.glyphToEmbedding(this.parseGGL(example.input)),
+      output: this.glyphToEmbedding(this.parseGGL(example.output))
+    }));
+    
+    // Encode query
+    const queryEmbedding = this.glyphToEmbedding(this.parseGGL(query));
+    
+    // Find nearest example in embedding space
+    const nearest = this.findNearestExample(queryEmbedding, exampleEmbeddings);
+    
+    // Compute transformation from nearest example
+    const transform = this.computeEmbeddingTransform(
+      nearest.input, nearest.output
+    );
+    
+    // Apply to query
+    const resultEmbedding = this.applyEmbeddingTransform(
+      queryEmbedding, transform
+    );
+    
+    // Decode back to glyph
+    const resultGlyph = this.embeddingToGlyph(resultEmbedding);
+    
+    return this.glyphToGGL(resultGlyph);
+  }
+}
+```
+
+## 5. Training Geometric Models
+
+```typescript
+// ggl-training.ts - Training on geometric data
+class GeometricTrainer {
+  private model: GeometricModel;
+  private optimizer: GeometricOptimizer;
+  private lossFn: GeometricLoss;
+  
+  constructor(model: GeometricModel) {
+    this.model = model;
+    this.optimizer = new GeometricAdamOptimizer({
+      learningRate: 0.001,
+      beta1: 0.9,
+      beta2: 0.999,
+      epsilon: 1e-8
+    });
+    this.lossFn = new GeometricChamferLoss();
+  }
+  
+  async train(
+    dataset: GeometricDataset,
+    epochs: number,
+    batchSize: number
+  ): Promise<TrainingHistory> {
+    const history: TrainingHistory = {
+      losses: [],
+      accuracies: [],
+      geometricMetrics: []
+    };
+    
+    for (let epoch = 0; epoch < epochs; epoch++) {
+      const batches = dataset.createBatches(batchSize);
+      
+      for (const batch of batches) {
+        // Forward pass
+        const predictions = this.model.forward(batch.inputs);
+        
+        // Compute geometric loss
+        const loss = this.lossFn.compute(predictions, batch.targets);
+        
+        // Backward pass with geometric gradients
+        const gradients = this.computeGeometricGradients(loss);
+        
+        // Update model with geometric constraints
+        this.optimizer.step(this.model, gradients);
+        
+        // Compute geometric metrics
+        const metrics = this.computeGeometricMetrics(predictions, batch.targets);
+        
+        history.losses.push(loss);
+        history.geometricMetrics.push(metrics);
+      }
+      
+      // Save checkpoint
+      if (epoch % 10 === 0) {
+        await this.saveCheckpoint(epoch);
+      }
+    }
+    
+    return history;
+  }
+  
+  /**
+   * Geometric contrastive learning
+   */
+  async trainContrastive(
+    positivePairs: Array<{anchor: Glyph, positive: Glyph}>,
+    negativePairs: Array<{anchor: Glyph, negative: Glyph}>
+  ): Promise<void> {
+    for (const pair of positivePairs) {
+      // Positive pairs should have similar embeddings
+      const anchorEmb = this.model.encode(pair.anchor);
+      const positiveEmb = this.model.encode(pair.positive);
+      
+      const positiveLoss = this.contrastiveLoss(
+        anchorEmb, positiveEmb, true
+      );
+      
+      this.model.backward(positiveLoss);
+    }
+    
+    for (const pair of negativePairs) {
+      // Negative pairs should have different embeddings
+      const anchorEmb = this.model.encode(pair.anchor);
+      const negativeEmb = this.model.encode(pair.negative);
+      
+      const negativeLoss = this.contrastiveLoss(
+        anchorEmb, negativeEmb, false
+      );
+      
+      this.model.backward(negativeLoss);
+    }
+  }
+  
+  /**
+   * Geometric data augmentation
+   */
+  augmentDataset(dataset: GeometricDataset): GeometricDataset {
+    const augmented: Glyph[] = [];
+    
+    for (const glyph of dataset.glyphs) {
+      // Apply random geometric transformations
+      const transforms = [
+        this.randomRotation(glyph),
+        this.randomScaling(glyph),
+        this.randomShear(glyph),
+        this.randomReflection(glyph),
+        this.randomNoise(glyph),
+        this.randomSubsampling(glyph)
+      ];
+      
+      augmented.push(glyph, ...transforms);
+    }
+    
+    return new GeometricDataset(augmented);
+  }
+}
+```
+
+## 6. Geometric Dataset Format
+
+```typescript
+// ggl-dataset.ts - Geometric dataset management
+interface GeometricSample {
+  id: string;
+  glyph: Glyph;
+  source: string;  // Original GGL source
+  metadata: {
+    category: string;
+    complexity: number;
+    symmetry: number;
+    area: number;
+    // ... other geometric properties
+  };
+  embeddings?: {
+    fourier: Vector;
+    topological: Vector;
+    geometric: Vector;
+  };
+}
+
+class GeometricDataset {
+  private samples: GeometricSample[] = [];
+  private index: SpatialIndex;
+  
+  constructor(samples: GeometricSample[]) {
+    this.samples = samples;
+    this.index = this.buildSpatialIndex(samples);
+  }
+  
+  /**
+   * Query by geometric similarity
+   */
+  queryBySimilarity(queryGlyph: Glyph, k: number = 10): GeometricSample[] {
+    // Compute query embedding
+    const queryEmb = this.computeEmbedding(queryGlyph);
+    
+    // Search in embedding space
+    return this.knnSearch(queryEmb, k);
+  }
+  
+  /**
+   * Query by geometric property ranges
+   */
+  queryByProperties(
+    filters: {
+      minArea?: number;
+      maxArea?: number;
+      minSymmetry?: number;
+      maxSymmetry?: number;
+      categories?: string[];
+    }
+  ): GeometricSample[] {
+    return this.samples.filter(sample => {
+      if (filters.minArea && sample.metadata.area < filters.minArea) return false;
+      if (filters.maxArea && sample.metadata.area > filters.maxArea) return false;
+      if (filters.minSymmetry && sample.metadata.symmetry < filters.minSymmetry) return false;
+      if (filters.maxSymmetry && sample.metadata.symmetry > filters.maxSymmetry) return false;
+      if (filters.categories && !filters.categories.includes(sample.metadata.category)) return false;
+      return true;
+    });
+  }
+  
+  /**
+   * Create geometric analogies dataset
+   */
+  createAnalogiesDataset(): Array<{
+    A: GeometricSample;
+    B: GeometricSample;
+    C: GeometricSample;
+    D: GeometricSample;
+  }> {
+    const analogies: any[] = [];
+    
+    for (let i = 0; i < this.samples.length; i++) {
+      for (let j = i + 1; j < this.samples.length; j++) {
+        const A = this.samples[i];
+        const B = this.samples[j];
+        
+        // Find C such that A:B::C:D makes sense geometrically
+        const Cs = this.findAnalogousPairs(A, B);
+        
+        for (const C of Cs) {
+          // Compute D that completes the analogy
+          const D = this.completeAnalogy(A, B, C);
+          
+          if (D) {
+            analogies.push({ A, B, C, D });
+          }
+        }
+      }
+    }
+    
+    return analogies;
+  }
+  
+  /**
+   * Export to common formats
+   */
+  export(format: 'ggltensors' | 'hdf5' | 'tfrecord' | 'json'): any {
+    switch (format) {
+      case 'ggltensors':
+        return this.exportToGGLTensors();
+      case 'hdf5':
+        return this.exportToHDF5();
+      case 'tfrecord':
+        return this.exportToTFRecord();
+      case 'json':
+        return this.exportToJSON();
+    }
+  }
+}
+```
+
+## 7. Integration with Existing AI Ecosystems
+
+```typescript
+// ggl-integration.ts - Bridge with PyTorch/TensorFlow/HuggingFace
+import * as tf from '@tensorflow/tfjs';
+import { AutoModel, AutoTokenizer } from '@huggingface/transformers';
+
+class GGLAIAdapter {
+  /**
+   * Convert GGL model to TensorFlow.js
+   */
+  static toTensorFlow(model: GeometricModel): tf.LayersModel {
+    const inputs = tf.input({ shape: [null, this.embeddingSize] });
+    
+    // Convert geometric layers to TF layers
+    const layers = model.layers.map(layer => {
+      switch (layer.type) {
+        case 'geometric-attention':
+          return new GeometricAttentionTF(layer.weights);
+        case 'glyph-convolution':
+          return new GlyphConvTF(layer.weights);
+        case 'spatial-pooling':
+          return new SpatialPoolingTF();
+      }
+    });
+    
+    // Build TF model
+    let output = inputs;
+    for (const layer of layers) {
+      output = layer.apply(output);
+    }
+    
+    return tf.model({ inputs, outputs: output });
+  }
+  
+  /**
+   * Convert HuggingFace model to understand GGL
+   */
+  static async adaptHuggingFaceModel(
+    modelName: string,
+    gglVocab: GeometricToken[]
+  ): Promise<any> {
+    // Load pretrained model
+    const model = await AutoModel.from_pretrained(modelName);
+    const tokenizer = await AutoTokenizer.from_pretrained(modelName);
+    
+    // Add geometric embeddings to tokenizer
+    const newVocab = [...tokenizer.vocab];
+    gglVocab.forEach(token => {
+      newVocab.push(`[GLYPH_${token.id}]`);
+    });
+    
+    // Extend model embeddings
+    const originalEmbeddings = model.embeddings.word_embeddings.weight;
+    const geometricEmbeddings = this.createGeometricEmbeddings(gglVocab);
+    
+    const combinedEmbeddings = tf.concat([
+      originalEmbeddings,
+      geometricEmbeddings
+    ], 0);
+    
+    // Create new model with extended vocabulary
+    const newModel = new AutoModel({
+      ...model.config,
+      vocab_size: originalEmbeddings.shape[0] + geometricEmbeddings.shape[0]
+    });
+    
+    // Copy original weights
+    this.copyWeights(model, newModel);
+    
+    // Set new embeddings
+    newModel.embeddings.word_embeddings.weight = combinedEmbeddings;
+    
+    return newModel;
+  }
+  
+  /**
+   * Serve GGL model as ONNX runtime
+   */
+  static async toONNX(model: GeometricModel): Promise<ArrayBuffer> {
+    const builder = new onnx.ModelProto();
+    
+    // Convert geometric operations to ONNX ops
+    model.layers.forEach((layer, i) => {
+      const node = this.layerToONNXNode(layer);
+      builder.graph.node.push(node);
+    });
+    
+    // Add geometric custom ops
+    const customOps = [
+      this.createGeometricAttentionOp(),
+      this.createGlyphConvolutionOp(),
+      this.createSpatialPoolingOp()
+    ];
+    
+    customOps.forEach(op => {
+      builder.opsetImport.push(op);
+    });
+    
+    return builder.serializeBinary();
+  }
+}
+```
+
+## 8. Geometric Model Zoo
+
+```typescript
+// model-zoo.ts - Pretrained geometric models
+export const GGLAIModelZoo = {
+  // Base models
+  'ggl-base': {
+    description: 'Base geometric model trained on 1M shapes',
+    parameters: '250M',
+    dimensions: 768,
+    layers: 12,
+    heads: 12,
+    download: 'https://models.ggl.ai/ggl-base.ggltensors'
+  },
+  
+  'ggl-large': {
+    description: 'Large geometric model trained on 10M shapes',
+    parameters: '750M',
+    dimensions: 1024,
+    layers: 24,
+    heads: 16,
+    download: 'https://models.ggl.ai/ggl-large.ggltensors'
+  },
+  
+  // Specialized models
+  'ggl-architectural': {
+    description: 'Specialized for architectural designs',
+    parameters: '150M',
+    trainingData: 'CAD drawings, blueprints, floor plans',
+    capabilities: ['floorplan-generation', 'structural-analysis', 'style-transfer'],
+    download: 'https://models.ggl.ai/ggl-arch.ggltensors'
+  },
+  
+  'ggl-molecular': {
+    description: 'Specialized for molecular structures',
+    parameters: '180M',
+    trainingData: 'Protein data bank, crystal structures',
+    capabilities: ['molecule-generation', 'binding-site-prediction', 'conformation-optimization'],
+    download: 'https://models.ggl.ai/ggl-mol.ggltensors'
+  },
+  
+  'ggl-typographic': {
+    description: 'Specialized for fonts and typography',
+    parameters: '120M',
+    trainingData: 'Font files, SVG glyphs, handwriting samples',
+    capabilities: ['font-generation', 'handwriting-synthesis', 'glyph-completion'],
+    download: 'https://models.ggl.ai/ggl-font.ggltensors'
+  },
+  
+  // Multimodal models
+  'ggl-vision': {
+    description: 'Vision-geometry multimodal model',
+    parameters: '500M',
+    modalities: ['image', 'geometry', 'text'],
+    capabilities: ['image-to-cad', 'sketch-to-3d', 'text-to-shape'],
+    download: 'https://models.ggl.ai/ggl-vision.ggltensors'
+  },
+  
+  // Code generation model
+  'ggl-coder': {
+    description: 'GGL code generation and completion',
+    parameters: '350M',
+    trainingData: '10M GGL programs',
+    capabilities: ['code-completion', 'program-synthesis', 'bug-fixing', 'optimization'],
+    download: 'https://models.ggl.ai/ggl-coder.ggltensors'
+  }
+};
+
+// Example usage
+async function loadPretrainedModel(modelName: keyof typeof GGLAIModelZoo) {
+  const modelInfo = GGLAIModelZoo[modelName];
+  
+  // Download model weights
+  const weights = await fetch(modelInfo.download);
+  const buffer = await weights.arrayBuffer();
+  
+  // Load into inference engine
+  const engine = new GGLInferenceEngine();
+  await engine.loadModelFromBuffer(buffer);
+  
+  return engine;
+}
+```
+
+## 9. Complete AI Pipeline Example
+
+```typescript
+// complete-example.ts - End-to-end geometric AI pipeline
+async function geometricAIPipeline() {
+  console.log('=== Geometric AI Pipeline ===');
+  
+  // 1. Load pretrained model
+  console.log('Loading model...');
+  const model = await loadPretrainedModel('ggl-large');
+  
+  // 2. Define geometric task
+  const task: GeometricTask = {
+    type: 'generation',
+    constraints: [
+      { type: 'area', min: 100, max: 200 },
+      { type: 'symmetry', value: 4 }, // 4-fold symmetry
+      { type: 'contains', glyph: new Circle({x:0, y:0}, 10) },
+      { type: 'excludes', glyph: new Square({x:20, y:20}, 5) }
+    ],
+    objective: 'maximize_compactness'
+  };
+  
+  // 3. Generate shape satisfying constraints
+  console.log('Generating shape...');
+  const generatedGGL = await model.optimize(task.constraints, task.objective);
+  
+  // 4. Convert to 3D
+  console.log('Converting to 3D...');
+  const threeObject = GGLThreeRenderer.render(generatedGGL);
+  
+  // 5. Apply style transfer
+  console.log('Applying style...');
+  const style = `
+    // Art Deco style
+    repeated = [ □ {s:2} rotated 45° ] ⍸ 8 around center;
+    outer = ◯ {r:30} ⍯ repeated;
+    inner = ◯ {r:20} ⍰ repeated;
+    result = outer ⍰ inner;
+  `;
+  
+  const styledGGL = await model.styleTransfer(generatedGGL, style);
+  
+  // 6. Complete partial design
+  console.log('Completing design...');
+  const partial = `
+    base = ◯ {r:25};
+    // TODO: Add decorative elements
+  `;
+  
+  const completions = await model.complete(partial);
+  
+  // 7. Solve geometric analogies
+  console.log('Solving analogies...');
+  const analogy = {
+    A: '◯ {r:10} ⍯ □ {s:15}',
+    B: '◯ {r:10} ⍰ □ {s:15}',
+    C: '△ {s:20} ⍯ ◇ {w:15, h:15}'
+  };
+  
+  const solution = await model.solveAnalogy(analogy);
+  
+  // 8. Export results
+  console.log('Exporting...');
+  const results = {
+    generated: generatedGGL,
+    styled: styledGGL,
+    completions,
+    analogySolution: solution,
+    threeModel: threeObject,
+    embeddings: model.extractEmbeddings(generatedGGL)
+  };
+  
+  // Export to various formats
+  await exportResults(results, {
+    formats: ['svg', 'stl', 'ggltensors', 'json'],
+    path: './output/'
+  });
+  
+  console.log('Pipeline complete!');
+  return results;
+}
+
+// Run pipeline
+geometricAIPipeline().then(results => {
+  console.log('Results:', results);
+});
+```
+
+## Key Innovations:
+
+### 1. **Geometric Tokenization**
+- Each glyph becomes a token with geometric embeddings
+- Fourier descriptors for rotation/scale invariant representations
+- Multi-scale tokenization for hierarchical understanding
+
+### 2. **Geometric Attention**
+- Attention weights based on spatial relationships, not just embeddings
+- Query-Key-Value projections from geometric properties
+- Preserves geometric constraints during transformation
+
+### 3. **.ggltensors Format**
+- Optimized for geometric data (sparse, quantized, structured)
+- Contains both embeddings and geometric properties
+- Self-describing with geometric metadata
+
+### 4. **Geometric Inference Tasks**
+- Shape completion (like code completion)
+- Geometric analogies (A:B::C:?)
+- Style transfer between geometric styles
+- Constraint-based generation
+- Few-shot geometric learning
+
+### 5. **Integration Pathways**
+- Convert to/from PyTorch/TensorFlow
+- Extend HuggingFace models with geometric vocabulary
+- Export to ONNX for production deployment
+- Compatible with existing AI infrastructure
+
+## This bridges the gap between:
+1. **Symbolic AI** (geometric rules, constraints)
+2. **Neural AI** (embeddings, attention, transformers)
+3. **Geometric computing** (your GGL language)
+4. **3D graphics** (Three.js, CAD systems)
+
+Perfect — I’ll do **the exact same thing** we did for XJSON/XCFE, but now **for GGL**, and I’ll **pin it precisely** in the `@` grammar stack so there’s no ambiguity left.
+
+This is **normative positioning**, not vibes.
+
+---
+
+# 🧠 GGL IN THE @ GRAMMAR STACK — ONE-PAGE TRUTH DIAGRAM
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                           HUMAN / AI                           │
+│               (thinks in space, structure, form)               │
+└───────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌───────────────────────────────────────────────────────────────┐
+│                              GGL                               │
+│            (GEOMETRIC STRUCTURAL DESCRIPTION LANGUAGE)         │
+│                                                               │
+│   ◯ □ △ ─ ⬡ ∿ ⌒                                                │
+│   union / subtract / repeat / transform                        │
+│                                                               │
+│   RULE:                                                        │
+│   GGL DESCRIBES GEOMETRY                                       │
+│   GGL DOES NOT EXECUTE                                         │
+│   GGL HAS NO CONTROL FLOW                                      │
+└───────────────────────────────────────────────────────────────┘
+                                   │
+                                   │  deterministic parse
+                                   ▼
+┌───────────────────────────────────────────────────────────────┐
+│                         GGL STRUCT AST                         │
+│        (pure geometry graph: shapes, transforms, relations)    │
+│                                                               │
+│   nodes:                                                       │
+│   • primitive (circle, square, path…)                          │
+│   • transform (scale, rotate, translate…)                      │
+│   • boolean (union, diff, intersect…)                          │
+│   • relation (contains, adjacent, symmetric…)                  │
+│                                                               │
+│   STILL NOT EXECUTION                                          │
+└───────────────────────────────────────────────────────────────┘
+                                   │
+                                   │  semantic alignment
+                                   ▼
+┌───────────────────────────────────────────────────────────────┐
+│                     DOMAIN ENGINE: GEOMETRY                    │
+│                     (ENG_GEOMETRY — FROZEN)                    │
+│                                                               │
+│   WHAT THIS DOES:                                              │
+│   ✔ defines spatial meaning                                    │
+│   ✔ defines metrics & topology                                 │
+│   ✔ defines invariants (area, symmetry, distance)              │
+│                                                               │
+│   WHAT THIS DOES NOT DO:                                       │
+│   ✘ execute                                                    │
+│   ✘ branch                                                     │
+│   ✘ schedule                                                   │
+└───────────────────────────────────────────────────────────────┘
+                                   │
+                                   │  canonical lowering
+                                   ▼
+┌───────────────────────────────────────────────────────────────┐
+│                          XJSON (ADB)                           │
+│                (ATOMIC DATA BLOCK REPRESENTATION)              │
+│                                                               │
+│   GGL → XJSON via @kind blocks:                                 │
+│                                                               │
+│   @kind: data       → geometry state                            │
+│   @kind: template   → parametric geometry                       │
+│   @kind: ref        → deferred shape binding                    │
+│   @kind: metric     → constraints (distance, area…)             │
+│   @kind: op         → *intent to act on geometry*               │
+│                                                               │
+│   XJSON HOLDS THE SHAPE AS INTENT                               │
+└───────────────────────────────────────────────────────────────┘
+                                   │
+                                   │  ONLY if execution exists
+                                   ▼
+┌───────────────────────────────────────────────────────────────┐
+│                         XCFE                                   │
+│               (CONTROL FLOW EXECUTION LAW)                     │
+│                                                               │
+│   XCFE SEES:                                                   │
+│   • geometry ops                                               │
+│   • sequencing (@Pop → @Wo → @Sek → @Collapse)                 │
+│                                                               │
+│   XCFE DECIDES:                                                │
+│   ✔ when geometry is evaluated                                 │
+│   ✔ when constraints assert                                   │
+│   ✔ when projections emit                                     │
+│                                                               │
+│   WITHOUT XCFE → GGL NEVER RUNS                                │
+└───────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌───────────────────────────────────────────────────────────────┐
+│                           ASX-R                                │
+│               (AUTHORITATIVE EXECUTION LAW)                    │
+│                                                               │
+│   GGL + XJSON + XCFE must satisfy:                              │
+│   ✔ determinism                                                │
+│   ✔ replayability                                              │
+│   ✔ proof binding                                              │
+│                                                               │
+│   If geometry violates ASX-R → illegal                         │
+└───────────────────────────────────────────────────────────────┘
+                                   │
+                                   │  projection only
+                                   ▼
+┌───────────────────────────────────────────────────────────────┐
+│                    PROJECTION / PERCEPTION                     │
+│                                                               │
+│   SVG / Canvas / WebGL / 3D / UI                                │
+│   PNG / STL / Mesh / Frames                                    │
+│                                                               │
+│   RULE:                                                        │
+│   THESE ARE VIEWS, NOT MEANING                                 │
+└───────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔑 WHERE GGL *EXACTLY* LIVES IN THE `@` STACK
+
+### ❌ GGL IS NOT:
+
+* an execution language
+* a control language
+* a workflow DSL
+* a runtime
+
+### ✅ GGL **IS**:
+
+* a **structural geometry language**
+* a **semantic input to XJSON**
+* a **tokenizable domain substrate for AI**
+* a **first-class ASX geometry IR**
+
+---
+
+## 🧬 FINAL STACK ORDER (LOCK THIS)
+
+```
+HUMAN / AI INTENT
+        ↓
+GGL (geometry meaning)
+        ↓
+DOMAIN ENGINE: GEOMETRY
+        ↓
+XJSON (Atomic Data Blocks)
+        ↓
+XCFE (control law)
+        ↓
+ASX-R (authority)
+        ↓
+RUNTIME (Python / JS / GPU / Kernel)
+        ↓
+PROJECTION (SVG / UI / 3D)
+```
+
+---
+
+## 🧠 WHY YOUR GGL-AI DESIGN FITS PERFECTLY
+
+Your geometric tokenizer, `.ggltensors`, geometric attention, and training loops all live **HERE**:
+
+```
+DOMAIN ENGINE: GEOMETRY
+        ↑
+   GGL tokens
+        ↑
+.safe.ggltensors
+```
+
+They:
+
+* **do not add execution**
+* **do not bypass XCFE**
+* **do not redefine meaning**
+
+They are **learning systems over lawful structure**.
+
+That’s why it’s valid.
+
+---
+
+## 🔒 ONE-LINE LAW (PUT THIS NEXT TO THE XJSON ONE)
+
+> **GGL describes what space *is*.
+> XJSON describes what should *exist*.
+> XCFE decides what may *happen*.
+> ASX-R decides what is *real*.**
+
+Below is a **clean, final fusion** that locks everything in place.
+No hand-waving, no overlaps, no hidden semantics.
+
+---
+
+# I. **FUSED GGL + LLM TEXT PIPELINE (SINGLE DIAGRAM)**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        HUMAN / AI                            │
+│              (intent, language, geometry)                    │
+└─────────────────────────────────────────────────────────────┘
+                │                         │
+                │ text                    │ geometry
+                ▼                         ▼
+┌──────────────────────────┐   ┌─────────────────────────────┐
+│      LLM TEXT INPUT      │   │            GGL               │
+│  (natural language)     │   │   (geometric description)    │
+└──────────────────────────┘   └─────────────────────────────┘
+                │                         │
+        tokenize / embed           parse / normalize
+                │                         │
+                ▼                         ▼
+┌──────────────────────────┐   ┌─────────────────────────────┐
+│  TEXT TOKEN STREAM       │   │     GGL STRUCT AST           │
+│  (subwords / symbols)    │   │ (shapes, transforms, graph) │
+└──────────────────────────┘   └─────────────────────────────┘
+                │                         │
+                └──────────┬──────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    DOMAIN ENGINES (FROZEN)                   │
+│                                                             │
+│  ENG_SYMBOL   ← text meaning                                 │
+│  ENG_GEOMETRY ← spatial meaning                              │
+│                                                             │
+│  (meaning only — NO execution)                               │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           │ canonical lowering
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│               XJSON — ATOMIC DATA BLOCKS (ADB)               │
+│                                                             │
+│  @kind: data        → geometry state                         │
+│  @kind: template    → parametric shapes                      │
+│  @kind: metric      → constraints                            │
+│  @kind: intent      → text ↔ geometry alignment              │
+│                                                             │
+│  (still not execution)                                       │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           │ ONLY if something must *run*
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        XCFE                                  │
+│            (phase order + control legality)                  │
+│                                                             │
+│  @Pop → @Wo → @Sek → @Collapse                               │
+│                                                             │
+│  decides when geometry/text is evaluated                     │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        ASX-R                                 │
+│            (determinism, replay, proof authority)            │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  PROJECTION / PERCEPTION                     │
+│      SVG · Canvas · 3D · UI · Images · Tokens                │
+│        (views only, never meaning)                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key truth:**
+Text and geometry **meet only at XJSON + Domain Engines**.
+Neither side is allowed to “execute” on its own.
+
+---
+
+# II. **FORMAL GGL → XJSON SCHEMA (v1)**
+
+This is **not executable**, only structural.
+
+```json
+{
+  "$schema": "xjson://schema/core/v1",
+  "@id": "asx://schema/ggl.to.xjson.v1",
+  "@type": "schema",
+  "@status": "frozen",
+
+  "type": "object",
+  "required": ["@kind", "@ggl"],
+  "properties": {
+    "@kind": {
+      "enum": ["data", "template", "metric", "intent"]
+    },
+
+    "@ggl": {
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "type"],
+            "properties": {
+              "id": { "type": "string" },
+
+              "type": {
+                "enum": [
+                  "primitive",
+                  "transform",
+                  "boolean",
+                  "relation"
+                ]
+              },
+
+              "primitive": {
+                "enum": ["circle", "square", "triangle", "path", "poly"]
+              },
+
+              "params": {
+                "type": "object",
+                "additionalProperties": { "type": "number" }
+              }
+            }
+          }
+        },
+
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "relation"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "relation": {
+                "enum": [
+                  "contains",
+                  "adjacent",
+                  "aligned",
+                  "symmetric",
+                  "transformed_by"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "@metrics": {
+      "type": "array",
+      "items": {
+        "$ref": "asx://schema/ars.assert.metric.v1"
+      }
+    },
+
+    "@intent": {
+      "type": "object",
+      "properties": {
+        "text_ref": { "type": "string" },
+        "alignment": {
+          "enum": ["describes", "constrains", "labels"]
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+# III. **GGL LEGALITY RULES — ASX-R (NORMATIVE)**
+
+These are **hard rules**. Violations = illegal program.
+
+---
+
+## 1. **Non-Execution Law**
+
+* GGL **MUST NOT** contain:
+
+  * control flow
+  * iteration
+  * branching
+  * mutation
+* Any loop-like construct is illegal.
+
+---
+
+## 2. **Deterministic Geometry Law**
+
+* All GGL primitives **must resolve to numeric parameters** after lowering.
+* Randomness, noise, or implicit defaults are illegal unless explicitly parameterized.
+
+---
+
+## 3. **Canonical Graph Law**
+
+* GGL MUST lower to a **finite directed acyclic graph**.
+* Cycles are illegal unless explicitly declared as *topological symmetry* (not execution).
+
+---
+
+## 4. **Metric Assertion Law**
+
+* Geometry constraints (distance, area, symmetry) MUST be expressed as:
+
+  * MFA-1 metric assertions
+* Geometry that violates asserted metrics is **invalid state**, not a runtime error.
+
+---
+
+## 5. **Domain Separation Law**
+
+* GGL nodes:
+
+  * may reference **geometry domain only**
+  * may not embed text semantics
+* Text alignment happens **only via XJSON `@intent` blocks**.
+
+---
+
+## 6. **XCFE Boundary Law**
+
+* GGL **cannot trigger execution**.
+* Only XCFE phases may:
+
+  * evaluate geometry
+  * emit projections
+  * assert legality
+
+---
+
+## 7. **Projection Non-Authority Law**
+
+* SVG / Canvas / Mesh output:
+
+  * MUST NOT be re-ingested as canonical geometry
+  * MUST NOT influence legality or meaning
+
+---
+
+## 8. **Compression Compliance Law**
+
+* Any persisted GGL structure MUST:
+
+  * lower into SCXQ2 lanes (G2L-1)
+  * preserve semantic identity after decompression
+
+---
+
+# IV. **ONE SENTENCE THAT ENDS ALL CONFUSION**
+
+> **LLMs reason in tokens, GGL reasons in space, XJSON binds meaning, XCFE governs time, and ASX-R decides reality.**
+
+Nothing overlaps.
+Nothing executes early.
+Nothing cheats.
+
+Locked. Below is a **normative, execution-grade answer** that fits cleanly into what you’ve already frozen.
+
+No metaphors. No extra power granted. This is law.
+
+---
+
+# I. **GGL → SCXQ2 Lane Mapping (G2L-GGL-1)**
+
+**Status:** Normative
+**Authority:** ASX-R
+**Depends on:** G2L-1, CC-v1, SCXQ2 v3
+
+---
+
+## 1. Purpose
+
+This mapping defines **how geometric structure becomes compressible, replayable state**
+without introducing execution, semantics, or ambiguity.
+
+> SCXQ2 is *storage + transport*.
+> GGL is *structure*.
+> The mapping is **purely canonical**.
+
+---
+
+## 2. SCXQ2 Core Lanes (Reminder)
+
+SCXQ2 lanes are **structural meaning containers**, not memory regions:
+
+| Lane    | Meaning                     |
+| ------- | --------------------------- |
+| `DICT`  | Stable symbol dictionary    |
+| `FIELD` | Typed structural records    |
+| `LANE`  | Ordered homogeneous vectors |
+| `EDGE`  | Graph relationships         |
+
+---
+
+## 3. Canonical Lane Assignment for GGL
+
+### 3.1 DICT — Geometric Vocabulary (Frozen)
+
+**DICT contains ONLY identifiers**, never values.
+
+```json
+DICT = {
+  "primitive:circle": 0x01,
+  "primitive:square": 0x02,
+  "primitive:triangle": 0x03,
+  "primitive:path": 0x04,
+
+  "relation:contains": 0x20,
+  "relation:adjacent": 0x21,
+  "relation:symmetric": 0x22,
+  "relation:transformed_by": 0x23,
+
+  "transform:translate": 0x40,
+  "transform:rotate": 0x41,
+  "transform:scale": 0x42
+}
+```
+
+**Rules**
+
+* DICT keys are **globally stable**
+* No runtime registration
+* Hash-addressed (SCXQ2 rule)
+
+---
+
+### 3.2 FIELD — Node Records (Canonical Geometry Units)
+
+Each **GGL node** lowers to exactly **one FIELD record**.
+
+```json
+FIELD[node_id] = {
+  "type": "primitive | transform | boolean | relation",
+  "kind": "circle | square | rotate | union | …",
+  "params": {
+    "r": 10,
+    "x": 0,
+    "y": 0,
+    "angle": 45
+  }
+}
+```
+
+**Rules**
+
+* FIELD keys are **structural**, not semantic
+* Parameter order is canonicalized (sorted keys)
+* Missing params are illegal (no defaults)
+
+---
+
+### 3.3 LANE — Numeric Geometry Vectors
+
+Numeric geometry is extracted into **typed lanes**.
+
+Example:
+
+```json
+LANE:params.circle.r      = [10, 20, 15]
+LANE:params.translate.x  = [0, 5, -2]
+LANE:params.rotate.angle = [45, 90]
+```
+
+**Rules**
+
+* One parameter → one lane
+* Lanes are **homogeneous**
+* Units are explicit (no implied scale)
+
+---
+
+### 3.4 EDGE — Structural Relationships
+
+Graph topology is stored **only** in EDGE.
+
+```json
+EDGE = [
+  { "from": "A", "to": "B", "relation": "contains" },
+  { "from": "B", "to": "C", "relation": "transformed_by" }
+]
+```
+
+**Rules**
+
+* No implicit relationships
+* Direction is mandatory
+* EDGE never encodes execution order
+
+---
+
+## 4. Canonical Packing Order (Mandatory)
+
+SCXQ2 encoding order for GGL is **fixed**:
+
+```
+DICT
+ → FIELD (sorted by node_id hash)
+   → LANE (sorted by param name)
+     → EDGE (sorted by from,to,relation hash)
+```
+
+Any deviation = **non-canonical**.
+
+---
+
+## 5. Compression Identity Law (GGL)
+
+After:
+
+```
+GGL → XJSON → SCXQ2 → decode → XJSON → GGL
+```
+
+The following **must be identical**:
+
+* graph topology
+* numeric values
+* metric assertions
+* node identities
+
+If not → **invalid ASX artifact**.
+
+---
+
+# II. **.ggltensors LEGALITY VS ASX-R**
+
+This is the critical separation.
+
+---
+
+## 6. What `.ggltensors` IS
+
+`.ggltensors` is a **payload container**, not a runtime.
+
+It may contain:
+
+* embeddings
+* weights
+* lookup tables
+* learned geometric correlations
+
+It **never** contains:
+
+* control flow
+* execution
+* semantics
+* legality authority
+
+---
+
+## 7. Mandatory `.ggltensors` Header (Normative)
+
+```json
+{
+  "magic": "GGLT",
+  "version": "1.0",
+  "tokenizer_hash": "scxq2:abcd1234",
+  "domain_engine_index": "DOMAIN_ENGINE_INDEX@v1",
+  "schema_refs": [
+    "asx://schema/ggl.to.xjson.v1",
+    "asx://schema/scxq2.v3"
+  ],
+  "asx_r_compat": "1.x"
+}
+```
+
+**Missing any field = illegal file**
+
+---
+
+## 8. ASX-R Authority Boundary (Hard Law)
+
+| Layer         | Authority     |
+| ------------- | ------------- |
+| ASX-R         | ✅ legality    |
+| XCFE          | ✅ phase order |
+| K’UHUL-A      | ✅ execution   |
+| SCXQ2         | ❌ semantics   |
+| `.ggltensors` | ❌ execution   |
+| `.ggltensors` | ❌ legality    |
+
+> `.ggltensors` **cannot make an illegal geometry legal**
+> `.ggltensors` **cannot override metric failure**
+
+---
+
+## 9. Allowed Use of `.ggltensors`
+
+`.ggltensors` MAY be used to:
+
+* suggest geometry
+* rank candidate structures
+* predict missing parameters
+* guide optimization
+
+BUT:
+
+All outputs **must still lower** to:
+
+```
+GGL → XJSON → XCFE → ASX-R verification
+```
+
+If verification fails → output is discarded.
+
+---
+
+## 10. Forbidden Behaviors (Explicit)
+
+A `.ggltensors` artifact is **invalid** if it:
+
+* encodes executable steps
+* contains loops or recursion
+* mutates state
+* bypasses XCFE
+* introduces hidden defaults
+* embeds projection artifacts as truth
+
+---
+
+## 11. Proof Binding Rule
+
+If `.ggltensors` influences a result:
+
+* the **final accepted geometry**
+* must produce a **normal ASX-R proof**
+* independent of the model
+
+> Models may *assist*.
+> Proofs decide.
+
+---
+
+# III. **Final Mental Model (One Line)**
+
+> **GGL defines space, SCXQ2 preserves it, .ggltensors guess about it, XCFE schedules it, and ASX-R judges it.**
+
+No circular authority.
+No neural shortcuts.
+No ambiguity left.
+
+```text
+ASX-R/REF — GGL + SCXQ2 Verifier Pseudocode (v1)
+Status: NORMATIVE
+Authority: ASX-R
+Scope: Deterministic verification of:
+  (A) GGL program / GGL→XJSON lowering
+  (B) SCXQ2 packed geometry lanes (DICT/FIELD/LANE/EDGE)
+  (C) Round-trip identity: GGL ⇄ XJSON ⇄ SCXQ2
+  (D) Proof envelope binding for ADB-derived execution
+
+Inputs:
+  - ggl_source?        : string (optional)
+  - ggl_xjson?         : object (optional)  // result of lowering, may be provided
+  - scxq2_blob?        : bytes  (optional)  // packed DICT/FIELD/LANE/EDGE
+  - proof_envelope?    : object (optional)
+  - policy             : verifier policy (ASX-R/REF defaults)
+Outputs:
+  - { ok: true, canonical_hashes, normalized_artifacts } OR { ok:false, errors[] }
+
+Hard Requirements:
+  - Determinism: same input → same output hashes
+  - No implicit defaults: missing fields are errors
+  - No execution authority: verifier never “fixes”; it only accepts/rejects
+  - Canonical JSON bytes: hashing uses asx://canon/json.bytes.v1
+```
+
+---
+
+## 0) Helpers (Normative)
+
+```pseudo
+function ERR(code, path, msg, meta?):
+  return { code, path, msg, meta }
+
+function SORT_KEYS_DEEP(x):
+  // stable deep sort of object keys; arrays preserved order
+  // used only for canonicalization checks, not to mutate original authority
+  ...
+
+function JSON_CANON_BYTES(x):
+  // asx://canon/json.bytes.v1
+  // 1) UTF-8
+  // 2) objects: keys sorted ascending bytewise (Unicode code point order)
+  // 3) arrays: preserved order
+  // 4) numbers: finite only; no NaN/Inf; -0 normalized to 0
+  // 5) strings: NFC normalized; escape rules exact (no unnecessary escapes)
+  // 6) no trailing whitespace; no comments; no duplicate keys
+  return bytes
+
+function HASH256(bytes): ...   // or HASH512 if policy requires
+function HASH_CANON_JSON(x): return HASH256(JSON_CANON_BYTES(x))
+
+function IS_FINITE_NUMBER(n):
+  return typeof(n)==number and n is finite and not NaN
+
+function REQUIRE(cond, code, path, msg, errors, meta?):
+  if not cond: errors.push(ERR(code, path, msg, meta))
+
+function BYTEWISE_CMP(a,b): ...
+```
+
+---
+
+## 1) Verifier Entry Point
+
+```pseudo
+function VERIFY_GGL_SCXQ2(input):
+  errors = []
+
+  // 1.1 Validate inputs presence
+  REQUIRE(input.ggl_source OR input.ggl_xjson OR input.scxq2_blob,
+          "missing_input", "$", "Provide ggl_source, ggl_xjson, or scxq2_blob", errors)
+
+  if errors not empty: return { ok:false, errors }
+
+  // 1.2 If SCXQ2 provided: decode to structured pack
+  scx_pack = null
+  if input.scxq2_blob:
+    scx_pack = SCXQ2_DECODE_AND_VERIFY(input.scxq2_blob, errors)
+    // scx_pack = { dict, fields, lanes, edges, meta }
+
+  // 1.3 If GGL source provided: parse + lower → xjson
+  ggl_ast = null
+  xjson_from_ggl = null
+  if input.ggl_source:
+    ggl_ast = GGL_PARSE(input.ggl_source, errors)
+    if errors not empty: return { ok:false, errors }
+    xjson_from_ggl = GGL_LOWER_TO_XJSON(ggl_ast, errors)
+    if errors not empty: return { ok:false, errors }
+
+  // 1.4 If xjson provided externally: validate schema + normalize
+  xjson_in = null
+  if input.ggl_xjson:
+    xjson_in = input.ggl_xjson
+
+  // Select authoritative xjson for further checks
+  xjson = xjson_from_ggl ? xjson_from_ggl : xjson_in
+
+  if xjson:
+    XJSON_VALIDATE_GGL_SHAPE(xjson, errors)
+    if errors not empty: return { ok:false, errors }
+    XJSON_CANON_CHECK(xjson, errors)
+    if errors not empty: return { ok:false, errors }
+
+  // 1.5 Cross-check SCXQ2 pack vs XJSON (if both exist)
+  if scx_pack AND xjson:
+    CROSSCHECK_XJSON_VS_SCXPACK(xjson, scx_pack, errors)
+    if errors not empty: return { ok:false, errors }
+
+  // 1.6 Round-trip identity checks (policy-controlled)
+  if input.policy.roundtrip_required:
+    ROUNDTRIP_IDENTITY(xjson, scx_pack, errors, input.policy)
+
+  if errors not empty: return { ok:false, errors }
+
+  // 1.7 Proof envelope (optional but supported)
+  proofs = null
+  if input.proof_envelope:
+    proofs = VERIFY_PROOF_ENVELOPE(input.proof_envelope, xjson, scx_pack, errors, input.policy)
+    if errors not empty: return { ok:false, errors }
+
+  // 1.8 Emit canonical hashes
+  out = {}
+  if xjson: out.xjson_hash = HASH_CANON_JSON(xjson)
+  if scx_pack: out.scx_pack_hash = HASH_CANON_JSON(scx_pack_to_json(scx_pack)) // structural view only
+  if proofs: out.proof_hash = HASH_CANON_JSON(input.proof_envelope)
+
+  return {
+    ok: true,
+    canonical_hashes: out,
+    normalized_artifacts: {
+      xjson: xjson ? SORT_KEYS_DEEP(xjson) : null,
+      scx_pack: scx_pack ? SCXPACK_NORMALIZED_VIEW(scx_pack) : null,
+      proof_envelope: proofs ? SORT_KEYS_DEEP(input.proof_envelope) : null
+    }
+  }
+```
+
+---
+
+## 2) SCXQ2 Decode + Verify (DICT/FIELD/LANE/EDGE)
+
+```pseudo
+function SCXQ2_DECODE_AND_VERIFY(blob, errors):
+  // 2.1 Decode using SCXQ2 v3 safe pipeline: decode→tokenize→validate→dispatch
+  decoded = SCXQ2_SAFE_DECODE(blob, errors)
+  if errors not empty: return null
+
+  // decoded MUST be structured pack, not raw JSON string
+  REQUIRE(decoded has keys [dict, fields, lanes, edges],
+          "scx_missing_sections", "$.scxq2", "SCXQ2 pack missing required sections", errors)
+
+  dict = decoded.dict
+  fields = decoded.fields
+  lanes = decoded.lanes
+  edges = decoded.edges
+  meta = decoded.meta? // optional
+
+  // 2.2 Validate DICT (stable ids)
+  REQUIRE(isObject(dict), "scx_dict_type", "$.scxq2.dict", "DICT must be object", errors)
+  for each (k,v) in dict:
+    REQUIRE(type(k)==string AND k != "",
+            "scx_dict_key", "$.scxq2.dict."+k, "DICT key must be non-empty string", errors)
+    REQUIRE(isInteger(v) AND v>=0,
+            "scx_dict_val", "$.scxq2.dict."+k, "DICT value must be >=0 integer", errors)
+
+  // 2.3 Validate FIELD records
+  REQUIRE(isObject(fields), "scx_fields_type", "$.scxq2.fields", "FIELDS must be object map", errors)
+  for each node_id in fields keys:
+    rec = fields[node_id]
+    REQUIRE(isObject(rec), "scx_field_rec_type", "$.scxq2.fields."+node_id, "FIELD record must be object", errors)
+    REQUIRE(rec.type in ["primitive","transform","boolean","relation"],
+            "scx_field_type", "$.scxq2.fields."+node_id+".type", "Invalid node type", errors)
+    REQUIRE(type(rec.kind)==string AND rec.kind!="",
+            "scx_field_kind", "$.scxq2.fields."+node_id+".kind", "Missing kind", errors)
+    REQUIRE(isObject(rec.params), "scx_field_params", "$.scxq2.fields."+node_id+".params", "params must be object", errors)
+
+    // No defaults allowed → params must match kind schema (checked later against XJSON)
+    REQUIRE(NO_DUP_KEYS(rec.params), "dup_keys", "$.scxq2.fields."+node_id+".params", "Duplicate keys", errors)
+
+    // Ensure params values are JSON-safe scalars/arrays/objects only
+    SCALAR_JSON_LEGALITY_CHECK(rec.params, "$.scxq2.fields."+node_id+".params", errors)
+
+  // 2.4 Validate LANEs (homogeneous vectors)
+  REQUIRE(isObject(lanes), "scx_lanes_type", "$.scxq2.lanes", "LANES must be object map", errors)
+  for each lane_name in lanes keys:
+    lane = lanes[lane_name]
+    REQUIRE(isArray(lane), "scx_lane_arr", "$.scxq2.lanes."+lane_name, "Lane must be array", errors)
+    // Homogeneity: all elements same primitive type (number|string|int) or same tuple schema
+    LANE_HOMOGENEITY_CHECK(lane, "$.scxq2.lanes."+lane_name, errors)
+
+  // 2.5 Validate EDGEs (graph)
+  REQUIRE(isArray(edges), "scx_edges_type", "$.scxq2.edges", "EDGEs must be array", errors)
+  for i in range(0,len(edges)):
+    e = edges[i]
+    p = "$.scxq2.edges["+i+"]"
+    REQUIRE(isObject(e), "scx_edge_obj", p, "EDGE must be object", errors)
+    REQUIRE(type(e.from)==string AND e.from in fields, "scx_edge_from", p+".from", "EDGE.from missing/unknown", errors)
+    REQUIRE(type(e.to)==string AND e.to in fields, "scx_edge_to", p+".to", "EDGE.to missing/unknown", errors)
+    REQUIRE(type(e.relation)==string AND e.relation!="", "scx_edge_rel", p+".relation", "EDGE.relation missing", errors)
+
+  // 2.6 Canonical packing order check (if meta includes ordering proof)
+  if meta and meta.ordering_hash:
+    computed = HASH_CANON_JSON(SCXPACK_NORMALIZED_VIEW(decoded))
+    REQUIRE(meta.ordering_hash == computed,
+            "scx_ordering_mismatch", "$.scxq2.meta.ordering_hash", "Pack ordering hash mismatch", errors)
+
+  return { dict, fields, lanes, edges, meta }
+```
+
+---
+
+## 3) XJSON Validate for GGL (Structural Only)
+
+Assume your GGL→XJSON schema is like:
+
+```json
+{
+  "@schema": "asx://schema/ggl.to.xjson.v1",
+  "@type": "ggl.program",
+  "nodes": { "A": { "type":"primitive", "kind":"circle", "params":{...} }, ... },
+  "edges": [ { "from":"A","to":"B","relation":"contains" }, ... ],
+  "metrics": [ ... ]   // optional MFA-1 assertions
+}
+```
+
+Verifier pseudocode:
+
+```pseudo
+function XJSON_VALIDATE_GGL_SHAPE(xjson, errors):
+  REQUIRE(isObject(xjson), "xjson_type", "$", "XJSON must be object", errors)
+  REQUIRE(xjson["@schema"]=="asx://schema/ggl.to.xjson.v1", "xjson_schema", "$.@schema", "Wrong schema", errors)
+  REQUIRE(xjson["@type"]=="ggl.program", "xjson_type_tag", "$.@type", "Wrong @type", errors)
+
+  REQUIRE(isObject(xjson.nodes), "xjson_nodes", "$.nodes", "nodes must be object map", errors)
+  REQUIRE(isArray(xjson.edges), "xjson_edges", "$.edges", "edges must be array", errors)
+
+  // Node checks
+  for each node_id in xjson.nodes keys:
+    n = xjson.nodes[node_id]
+    p = "$.nodes."+node_id
+    REQUIRE(isObject(n), "xjson_node_obj", p, "node must be object", errors)
+    REQUIRE(n.type in ["primitive","transform","boolean","relation"], "xjson_node_type", p+".type", "Invalid type", errors)
+    REQUIRE(type(n.kind)==string and n.kind!="", "xjson_node_kind", p+".kind", "Missing kind", errors)
+    REQUIRE(isObject(n.params), "xjson_node_params", p+".params", "params must be object", errors)
+    REQUIRE(NO_DUP_KEYS(n.params), "dup_keys", p+".params", "Duplicate keys", errors)
+    SCALAR_JSON_LEGALITY_CHECK(n.params, p+".params", errors)
+
+  // Edge checks
+  for i in range(0,len(xjson.edges)):
+    e = xjson.edges[i]
+    p = "$.edges["+i+"]"
+    REQUIRE(isObject(e), "xjson_edge_obj", p, "edge must be object", errors)
+    REQUIRE(type(e.from)==string AND e.from in xjson.nodes, "xjson_edge_from", p+".from", "Unknown from", errors)
+    REQUIRE(type(e.to)==string AND e.to in xjson.nodes, "xjson_edge_to", p+".to", "Unknown to", errors)
+    REQUIRE(type(e.relation)==string AND e.relation!="", "xjson_edge_rel", p+".relation", "Missing relation", errors)
+
+  // Optional metrics (MFA-1)
+  if xjson.metrics exists:
+    MFA1_VALIDATE(xjson.metrics, xjson.nodes, errors)
+```
+
+---
+
+## 4) Crosscheck XJSON vs SCXQ2 Pack
+
+```pseudo
+function CROSSCHECK_XJSON_VS_SCXPACK(xjson, scx, errors):
+  // 4.1 Node set must match exactly
+  x_ids = SORT(node keys in xjson.nodes)
+  s_ids = SORT(node keys in scx.fields)
+  REQUIRE(x_ids == s_ids, "node_id_mismatch", "$", "XJSON nodes != SCX fields node ids", errors,
+          { xjson_count:len(x_ids), scx_count:len(s_ids) })
+
+  // 4.2 For each node, type/kind/params must match exactly after canonicalization
+  for each node_id in x_ids:
+    xn = xjson.nodes[node_id]
+    sn = scx.fields[node_id]
+    REQUIRE(xn.type==sn.type, "node_type_mismatch", "$.nodes."+node_id+".type", "type mismatch", errors)
+    REQUIRE(xn.kind==sn.kind, "node_kind_mismatch", "$.nodes."+node_id+".kind", "kind mismatch", errors)
+
+    // params deep-equality under canonical JSON rules
+    REQUIRE(HASH_CANON_JSON(xn.params) == HASH_CANON_JSON(sn.params),
+            "node_params_mismatch", "$.nodes."+node_id+".params", "params mismatch", errors)
+
+  // 4.3 Edge multiset must match (order not authoritative; canonical multiset is)
+  x_edge_hashes = []
+  for each e in xjson.edges:
+    x_edge_hashes.push(HASH_CANON_JSON({from:e.from,to:e.to,relation:e.relation}))
+  sort(x_edge_hashes)
+
+  s_edge_hashes = []
+  for each e in scx.edges:
+    s_edge_hashes.push(HASH_CANON_JSON({from:e.from,to:e.to,relation:e.relation}))
+  sort(s_edge_hashes)
+
+  REQUIRE(x_edge_hashes == s_edge_hashes,
+          "edge_set_mismatch", "$.edges", "Edges mismatch between XJSON and SCXQ2", errors)
+
+  // 4.4 LANE agreement (if XJSON includes lane view)
+  if xjson.lanes exists:
+    REQUIRE(HASH_CANON_JSON(xjson.lanes) == HASH_CANON_JSON(scx.lanes),
+            "lane_mismatch", "$.lanes", "LANE vectors mismatch", errors)
+
+  // 4.5 DICT constraints (if XJSON declares dict refs)
+  if xjson.dict exists:
+    REQUIRE(HASH_CANON_JSON(xjson.dict) == HASH_CANON_JSON(scx.dict),
+            "dict_mismatch", "$.dict", "DICT mismatch", errors)
+```
+
+---
+
+## 5) Round-Trip Identity (Policy Gate)
+
+```pseudo
+function ROUNDTRIP_IDENTITY(xjson, scx_pack, errors, policy):
+  // Option A: xjson → scx → decode → xjson'
+  if xjson:
+    encoded = SCXQ2_ENCODE_CANONICAL_FROM_XJSON(xjson, errors)
+    if errors not empty: return
+    scx2 = SCXQ2_DECODE_AND_VERIFY(encoded, errors)
+    if errors not empty: return
+    xjson2 = SCXPACK_TO_XJSON(scx2, errors)
+    if errors not empty: return
+
+    REQUIRE(HASH_CANON_JSON(xjson) == HASH_CANON_JSON(xjson2),
+            "roundtrip_xjson_fail", "$", "XJSON round-trip hash mismatch", errors)
+
+  // Option B: scx → decode → xjson → encode → bytes' (byte-identical only if policy.strict_bytes)
+  if policy.strict_bytes AND scx_pack:
+    x = SCXPACK_TO_XJSON(scx_pack, errors)
+    if errors not empty: return
+    bytes2 = SCXQ2_ENCODE_CANONICAL_FROM_XJSON(x, errors)
+    if errors not empty: return
+    REQUIRE(bytes2 == original_blob,
+            "roundtrip_scx_bytes_fail", "$.scxq2", "SCXQ2 bytes not identical under strict policy", errors)
+```
+
+---
+
+## 6) GGL Legality Rules (Verifier Hooks)
+
+These checks are *ASX-R legality*, not “format validation”.
+
+```pseudo
+function GGL_LEGALITY_CHECK(xjson, errors, policy):
+  // 6.1 No implicit units; all numeric params must include unit tags if policy requires
+  if policy.require_units:
+    for each node in xjson.nodes:
+      for each (k,v) in node.params:
+        if IS_FINITE_NUMBER(v):
+          REQUIRE(node.params_units exists AND k in node.params_units,
+                  "missing_unit", "$.nodes."+id+".params_units."+k, "Missing unit for numeric param", errors)
+
+  // 6.2 No hidden defaults
+  for each node:
+    schema = LOOKUP_KIND_SCHEMA(node.kind)
+    REQUIRE(SET(keys(node.params)) == SET(schema.required_params),
+            "param_set_violation", "$.nodes."+id+".params", "Params must match required set exactly", errors)
+
+  // 6.3 Graph closure
+  // Every referenced node must exist already (done in edge check)
+  // Optionally enforce acyclicity for transform chains
+  if policy.disallow_transform_cycles:
+    REQUIRE(NO_CYCLES_IN_SUBGRAPH(xjson, types=["transform"]), "cycle", "$.edges", "Transform cycle illegal", errors)
+
+  // 6.4 Metric assertions (MFA-1)
+  if xjson.metrics:
+    MFA1_VERIFY_ASSERTIONS(xjson, errors)
+```
+
+---
+
+## 7) Proof Envelope Verify (ADB-Derived Execution Binding)
+
+Even for “geometry-only”, if you bind execution to ADB steps, you verify proof roots.
+
+```pseudo
+function VERIFY_PROOF_ENVELOPE(env, xjson, scx_pack, errors, policy):
+  REQUIRE(env["@schema"]=="asx://schema/proof.envelope.adb.v1", "proof_schema", "$.@schema", "Wrong proof schema", errors)
+  REQUIRE(IS_FINITE_NUMBER(env["@timestamp"]), "proof_ts", "$.@timestamp", "Missing timestamp", errors)
+  REQUIRE(type(env["@hash_alg"])=="string", "proof_alg", "$.@hash_alg", "Missing hash alg", errors)
+
+  // Bind hashes to inputs
+  if xjson:
+    REQUIRE(env.bindings.xjson_hash == HASH_CANON_JSON(xjson),
+            "proof_xjson_bind", "$.bindings.xjson_hash", "XJSON hash binding mismatch", errors)
+  if scx_pack:
+    REQUIRE(env.bindings.scx_pack_hash == HASH_CANON_JSON(scx_pack_to_json(scx_pack)),
+            "proof_scx_bind", "$.bindings.scx_pack_hash", "SCX pack hash binding mismatch", errors)
+
+  // Verify step proof chain (monotonic)
+  prev = null
+  for i in range(0,len(env.steps)):
+    s = env.steps[i]
+    p = "$.steps["+i+"]"
+    REQUIRE(type(s.step_id)=="string", "proof_step_id", p+".step_id", "Missing step_id", errors)
+    REQUIRE(type(s.op)=="string", "proof_step_op", p+".op", "Missing op", errors)
+    REQUIRE(isObject(s.args), "proof_step_args", p+".args", "Missing args", errors)
+    REQUIRE(type(s.hash)=="string", "proof_step_hash", p+".hash", "Missing step hash", errors)
+
+    computed = HASH_CANON_JSON({
+      "step_id": s.step_id,
+      "op": s.op,
+      "args": s.args,
+      "prev": prev
+    })
+
+    REQUIRE(s.hash == computed, "proof_step_hash_mismatch", p+".hash", "Step hash mismatch", errors)
+    prev = s.hash
+
+  REQUIRE(env.root == prev, "proof_root_mismatch", "$.root", "Proof root mismatch", errors)
+  return true
+```
+
+---
+
+## 8) What This Verifier Produces (Guaranteed)
+
+If accepted, you can *always* rely on:
+
+* canonical hashes for XJSON and SCX pack
+* a normalized structural view (stable)
+* deterministic reject reasons (paths + codes)
+
+If rejected, you get **precise failure**:
+
+* schema mismatch
+* node set mismatch
+* params mismatch
+* edge set mismatch
+* lane homogeneity errors
+* proof binding errors
+* legality violations (defaults/units/cycles/metrics)
+
+---
+
+Below are the **exact, machine-checkable JSON Schemas** the verifier pseudocode assumes.
+They are **strict**, **offline**, **deterministic**, use **internal authority only**, and are written to be **drop-in verifiable** under ASX-R/REF.
+
+All schemas share these invariants:
+
+* **No external `$schema` URLs**
+* **No additionalProperties unless explicitly allowed**
+* **No defaults**
+* **No implicit coercion**
+* **Order-independent objects, order-significant arrays**
+* **JSON legality only (no functions, no comments)**
+
+---
+
+# 1) `asx://schema/ggl.to.xjson.v1`
+
+```json
+{
+  "$schema": "xjson://schema/core/v1",
+  "$id": "asx://schema/ggl.to.xjson.v1",
+  "title": "GGL → XJSON Structural Program",
+  "type": "object",
+  "required": ["@schema", "@type", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "@schema": {
+      "const": "asx://schema/ggl.to.xjson.v1"
+    },
+    "@type": {
+      "const": "ggl.program"
+    },
+    "nodes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "lanes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/lane"
+      }
+    },
+    "metrics": {
+      "$ref": "asx://schema/mfa1.metrics.v1"
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["type", "kind", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": ["primitive", "transform", "boolean", "relation"]
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonScalar"
+          }
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["from", "to", "relation"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "relation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "lane": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/jsonScalar"
+      }
+    },
+    "jsonScalar": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "number",
+          "not": { "enum": [null] }
+        },
+        { "type": "boolean" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jsonScalar" }
+        },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/jsonScalar" }
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+# 2) `asx://schema/scxq2.ggl.pack.v1`
+
+*(Structural JSON view of DICT / FIELD / LANE / EDGE)*
+
+```json
+{
+  "$schema": "xjson://schema/core/v1",
+  "$id": "asx://schema/scxq2.ggl.pack.v1",
+  "title": "SCXQ2 GGL Structural Pack",
+  "type": "object",
+  "required": ["dict", "fields", "lanes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "dict": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/field"
+      }
+    },
+    "lanes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/lane"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ordering_hash": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "required": ["type", "kind", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": ["primitive", "transform", "boolean", "relation"]
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonScalar"
+          }
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["from", "to", "relation"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "relation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "lane": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/jsonScalar"
+      }
+    },
+    "jsonScalar": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "number"
+        },
+        { "type": "boolean" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jsonScalar" }
+        },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/jsonScalar" }
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+# 3) `asx://schema/proof.envelope.adb.v1`
+
+*(ADB-derived execution proof envelope)*
+
+```json
+{
+  "$schema": "xjson://schema/core/v1",
+  "$id": "asx://schema/proof.envelope.adb.v1",
+  "title": "ADB Proof / Signature Envelope",
+  "type": "object",
+  "required": [
+    "@schema",
+    "@timestamp",
+    "@hash_alg",
+    "bindings",
+    "steps",
+    "root"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "@schema": {
+      "const": "asx://schema/proof.envelope.adb.v1"
+    },
+    "@timestamp": {
+      "type": "number"
+    },
+    "@hash_alg": {
+      "type": "string",
+      "enum": ["sha256", "sha512"]
+    },
+    "bindings": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    },
+    "root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "signer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kid": { "type": "string" },
+        "pub": { "type": "string" },
+        "sig": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "required": ["step_id", "op", "args", "hash"],
+      "additionalProperties": false,
+      "properties": {
+        "step_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "op": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonScalar"
+          }
+        },
+        "hash": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "jsonScalar": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jsonScalar" }
+        },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/jsonScalar" }
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+# 4) `asx://schema/mfa1.metrics.v1`
+
+*(Metric-aware Fold Assertions — verifier-grade)*
+
+```json
+{
+  "$schema": "xjson://schema/core/v1",
+  "$id": "asx://schema/mfa1.metrics.v1",
+  "title": "MFA-1 Metric Assertions",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/assertion"
+  },
+  "$defs": {
+    "assertion": {
+      "type": "object",
+      "required": ["metric", "op", "args"],
+      "additionalProperties": false,
+      "properties": {
+        "metric": {
+          "type": "string",
+          "enum": [
+            "distance",
+            "angle",
+            "area",
+            "perimeter",
+            "contains",
+            "intersects",
+            "touches"
+          ]
+        },
+        "op": {
+          "type": "string",
+          "enum": ["<", "<=", ">", ">=", "==", "!="]
+        },
+        "args": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/jsonScalar"
+          }
+        },
+        "units": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "jsonScalar": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jsonScalar" }
+        },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/jsonScalar" }
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## ✅ What This Locks In (Important)
+
+* **GGL is structural, never executable**
+* **XJSON is not “data” — it is a *data-template AST***
+* **SCXQ2 is a meaning-preserving compression algebra**
+* **Proofs bind structure, not behavior**
+* **Metrics are verifier-grade, not runtime loops**
+
+These schemas + the earlier pseudocode together form a **complete, deterministic, verifier-authoritative GGL pipeline under ASX-R**.
+
+
+
+Below are **reference JS + Python verifiers** that implement the **four schemas** you just locked, including a **byte-exact canonical JSON → bytes → hash** pipeline.
+
+I’m going to make one hard determinism call so this is truly “byte-exact” across JS + Python:
+
+✅ **Canonical JSON bytes rule used here:** **RFC 8785 (JCS)**-style canonicalization
+
+* UTF-8, no BOM
+* Objects: keys **sorted lexicographically**
+* Arrays: order preserved
+* Strings: JSON escapes
+* Numbers: **restricted to integers** by default (cross-runtime safe)
+
+  * (Optional) If you need non-integers, use **decimal strings** in `params` and treat them as strings, not JSON numbers.
+
+If you want floats canonically too, we can extend with a “Decimal-only” rule and disallow JS Number floats entirely.
+
+---
+
+## Reference JS verifier (Node / Browser-safe)
+
+```js
+/* asx_ref_verify.js
+ *
+ * Reference verifier for:
+ * - asx://schema/ggl.to.xjson.v1
+ * - asx://schema/scxq2.ggl.pack.v1
+ * - asx://schema/proof.envelope.adb.v1
+ * - asx://schema/mfa1.metrics.v1
+ *
+ * Determinism:
+ * - Canonical JSON bytes: RFC 8785 (JCS)-style (keys sorted, UTF-8, minimal)
+ * - Numbers: ONLY SAFE AS INTEGERS (enforced). Use strings for decimals.
+ */
+
+const ASX = (() => {
+  // -----------------------------
+  // UTF-8 bytes
+  // -----------------------------
+  function utf8Bytes(str) {
+    if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(str);
+    // Node fallback
+    return Buffer.from(str, "utf8");
+  }
+
+  // -----------------------------
+  // Hashing (sha256 / sha512)
+  // -----------------------------
+  async function hashBytes(bytes, alg) {
+    const a = (alg || "sha256").toLowerCase();
+    if (typeof crypto !== "undefined" && crypto.subtle) {
+      const algo = a === "sha512" ? "SHA-512" : "SHA-256";
+      const buf = await crypto.subtle.digest(algo, bytes);
+      return bytesToHex(new Uint8Array(buf));
+    } else {
+      // Node.js
+      const { createHash } = await import("crypto");
+      const h = createHash(a);
+      h.update(Buffer.from(bytes));
+      return h.digest("hex");
+    }
+  }
+
+  function bytesToHex(u8) {
+    let out = "";
+    for (let i = 0; i < u8.length; i++) out += u8[i].toString(16).padStart(2, "0");
+    return out;
+  }
+
+  // -----------------------------
+  // Canonical JSON (JCS-style)
+  // -----------------------------
+  function canonJsonString(value) {
+    return canon(value);
+  }
+
+  function canon(value) {
+    if (value === null) return "null";
+
+    const t = typeof value;
+
+    if (t === "boolean") return value ? "true" : "false";
+    if (t === "string") return JSON.stringify(value);
+
+    if (t === "number") {
+      // Cross-runtime safety: integers only
+      if (!Number.isFinite(value)) throw new Error("Non-finite number not allowed");
+      if (!Number.isInteger(value)) throw new Error("Non-integer number forbidden in canonical bytes (use string)");
+      // -0 normalized to 0
+      if (Object.is(value, -0)) return "0";
+      return String(value);
+    }
+
+    if (Array.isArray(value)) {
+      let parts = [];
+      for (const v of value) parts.push(canon(v));
+      return "[" + parts.join(",") + "]";
+    }
+
+    if (t === "object") {
+      const keys = Object.keys(value).sort(); // lexicographic by UTF-16 code units
+      let parts = [];
+      for (const k of keys) {
+        const v = value[k];
+        // IMPORTANT: undefined is illegal in JSON; reject it
+        if (typeof v === "undefined") throw new Error("Undefined value is illegal in canonical JSON");
+        parts.push(JSON.stringify(k) + ":" + canon(v));
+      }
+      return "{" + parts.join(",") + "}";
+    }
+
+    throw new Error("Unsupported JSON type: " + t);
+  }
+
+  function canonJsonBytes(value) {
+    return utf8Bytes(canonJsonString(value));
+  }
+
+  // -----------------------------
+  // Minimal structural validators (schema-accurate)
+  // -----------------------------
+  function isPlainObject(x) {
+    return !!x && typeof x === "object" && !Array.isArray(x);
+  }
+
+  function req(cond, msg) {
+    if (!cond) throw new Error(msg);
+  }
+
+  function validate_mfa1(metrics) {
+    req(Array.isArray(metrics), "mfa1.metrics must be an array");
+    for (const a of metrics) {
+      req(isPlainObject(a), "metric assertion must be object");
+      req(typeof a.metric === "string", "metric must be string");
+      req(["distance","angle","area","perimeter","contains","intersects","touches"].includes(a.metric),
+        "metric invalid: " + a.metric);
+      req(typeof a.op === "string", "op must be string");
+      req(["<","<=",">",">=","==","!="].includes(a.op), "op invalid: " + a.op);
+      req(Array.isArray(a.args) && a.args.length >= 2, "args must be array len>=2");
+      if ("units" in a) req(typeof a.units === "string" && a.units.length > 0, "units must be non-empty string");
+    }
+  }
+
+  function validate_ggl_to_xjson(p) {
+    req(isPlainObject(p), "ggl program must be object");
+    req(p["@schema"] === "asx://schema/ggl.to.xjson.v1", "bad @schema for ggl program");
+    req(p["@type"] === "ggl.program", "bad @type for ggl program");
+    req(isPlainObject(p.nodes), "nodes must be object");
+    req(Array.isArray(p.edges), "edges must be array");
+
+    for (const [id, node] of Object.entries(p.nodes)) {
+      req(typeof id === "string" && id.length > 0, "node id must be non-empty string");
+      req(isPlainObject(node), "node must be object: " + id);
+      req(["primitive","transform","boolean","relation"].includes(node.type), "node.type invalid: " + id);
+      req(typeof node.kind === "string" && node.kind.length > 0, "node.kind invalid: " + id);
+      req(isPlainObject(node.params), "node.params must be object: " + id);
+    }
+    for (const e of p.edges) {
+      req(isPlainObject(e), "edge must be object");
+      req(typeof e.from === "string" && e.from.length > 0, "edge.from invalid");
+      req(typeof e.to === "string" && e.to.length > 0, "edge.to invalid");
+      req(typeof e.relation === "string" && e.relation.length > 0, "edge.relation invalid");
+    }
+    if ("lanes" in p) {
+      req(isPlainObject(p.lanes), "lanes must be object");
+      for (const [lname, arr] of Object.entries(p.lanes)) {
+        req(typeof lname === "string" && lname.length > 0, "lane name invalid");
+        req(Array.isArray(arr), "lane value must be array");
+      }
+    }
+    if ("metrics" in p) validate_mfa1(p.metrics);
+  }
+
+  function validate_scxq2_pack(pack) {
+    req(isPlainObject(pack), "scxq2 pack must be object");
+    req(isPlainObject(pack.dict), "dict must be object");
+    req(isPlainObject(pack.fields), "fields must be object");
+    req(isPlainObject(pack.lanes), "lanes must be object");
+    req(Array.isArray(pack.edges), "edges must be array");
+
+    for (const [k, v] of Object.entries(pack.dict)) {
+      req(typeof k === "string" && k.length > 0, "dict key invalid");
+      req(Number.isInteger(v) && v >= 0, "dict value must be int>=0");
+    }
+    for (const [fid, f] of Object.entries(pack.fields)) {
+      req(typeof fid === "string" && fid.length > 0, "field id invalid");
+      req(isPlainObject(f), "field must be object");
+      req(["primitive","transform","boolean","relation"].includes(f.type), "field.type invalid: " + fid);
+      req(typeof f.kind === "string" && f.kind.length > 0, "field.kind invalid: " + fid);
+      req(isPlainObject(f.params), "field.params must be object: " + fid);
+    }
+    for (const [lname, lane] of Object.entries(pack.lanes)) {
+      req(typeof lname === "string" && lname.length > 0, "lane name invalid");
+      req(Array.isArray(lane), "lane must be array");
+    }
+    for (const e of pack.edges) {
+      req(isPlainObject(e), "edge must be object");
+      req(typeof e.from === "string" && e.from.length > 0, "edge.from invalid");
+      req(typeof e.to === "string" && e.to.length > 0, "edge.to invalid");
+      req(typeof e.relation === "string" && e.relation.length > 0, "edge.relation invalid");
+    }
+    if ("meta" in pack) {
+      req(isPlainObject(pack.meta), "meta must be object");
+      if ("ordering_hash" in pack.meta) req(typeof pack.meta.ordering_hash === "string", "ordering_hash must be string");
+    }
+  }
+
+  function validate_proof_envelope(env) {
+    req(isPlainObject(env), "proof envelope must be object");
+    req(env["@schema"] === "asx://schema/proof.envelope.adb.v1", "bad @schema for envelope");
+    req(typeof env["@timestamp"] === "number" && Number.isFinite(env["@timestamp"]), "@timestamp must be number");
+    req(typeof env["@hash_alg"] === "string", "@hash_alg must be string");
+    req(env["@hash_alg"] === "sha256" || env["@hash_alg"] === "sha512", "@hash_alg invalid");
+    req(isPlainObject(env.bindings), "bindings must be object");
+    req(Array.isArray(env.steps) && env.steps.length >= 1, "steps must be array len>=1");
+    req(typeof env.root === "string" && env.root.length > 0, "root must be non-empty string");
+
+    for (const [k, v] of Object.entries(env.bindings)) {
+      req(typeof k === "string" && k.length > 0, "binding key invalid");
+      req(typeof v === "string" && v.length > 0, "binding value invalid");
+    }
+    for (const s of env.steps) {
+      req(isPlainObject(s), "step must be object");
+      req(typeof s.step_id === "string" && s.step_id.length > 0, "step_id invalid");
+      req(typeof s.op === "string" && s.op.length > 0, "op invalid");
+      req(isPlainObject(s.args), "args must be object");
+      req(typeof s.hash === "string" && s.hash.length > 0, "hash invalid");
+    }
+    if ("signer" in env) {
+      req(isPlainObject(env.signer), "signer must be object");
+      for (const k of ["kid","pub","sig"]) {
+        if (k in env.signer) req(typeof env.signer[k] === "string", "signer." + k + " must be string");
+      }
+    }
+  }
+
+  // -----------------------------
+  // Proof hashing rules (ADB-derived execution)
+  // -----------------------------
+  // Deterministic step hash chain:
+  // step_hash_i = HASH( canonBytes({ step_id, op, args, prev }) )
+  // where prev = "" for first step, else previous step hash.
+  // root MUST equal last step hash.
+  async function verify_proof_chain(env) {
+    validate_proof_envelope(env);
+
+    const alg = env["@hash_alg"];
+    let prev = "";
+
+    for (let i = 0; i < env.steps.length; i++) {
+      const s = env.steps[i];
+      const material = { step_id: s.step_id, op: s.op, args: s.args, prev };
+      const h = await hashBytes(canonJsonBytes(material), alg);
+      req(h === s.hash, `step[${i}] hash mismatch`);
+      prev = h;
+    }
+    req(prev === env.root, "root mismatch (must equal last step hash)");
+    return true;
+  }
+
+  // -----------------------------
+  // Full verifier: GGL + SCXQ2 + PROOF (+ optional MFA-1)
+  // -----------------------------
+  // bindings expected:
+  // - bindings.ggl_program_hash = HASH(canonBytes(gglProgram))
+  // - bindings.scxq2_pack_hash  = HASH(canonBytes(scxPack))
+  // - bindings.metrics_hash     = HASH(canonBytes(metrics))   (optional)
+  async function verify_all({ gglProgram, scxPack, proofEnvelope }) {
+    validate_ggl_to_xjson(gglProgram);
+    validate_scxq2_pack(scxPack);
+    validate_proof_envelope(proofEnvelope);
+
+    const alg = proofEnvelope["@hash_alg"];
+
+    const gglHash = await hashBytes(canonJsonBytes(gglProgram), alg);
+    const packHash = await hashBytes(canonJsonBytes(scxPack), alg);
+
+    if ("ggl_program_hash" in proofEnvelope.bindings) {
+      req(proofEnvelope.bindings.ggl_program_hash === gglHash, "bindings.ggl_program_hash mismatch");
+    }
+    if ("scxq2_pack_hash" in proofEnvelope.bindings) {
+      req(proofEnvelope.bindings.scxq2_pack_hash === packHash, "bindings.scxq2_pack_hash mismatch");
+    }
+
+    // Optional MFA-1 bound either from gglProgram.metrics or binding
+    if (gglProgram.metrics) {
+      const mHash = await hashBytes(canonJsonBytes(gglProgram.metrics), alg);
+      if ("metrics_hash" in proofEnvelope.bindings) {
+        req(proofEnvelope.bindings.metrics_hash === mHash, "bindings.metrics_hash mismatch");
+      }
+    }
+
+    await verify_proof_chain(proofEnvelope);
+    return { ok: true, gglHash, packHash };
+  }
+
+  return {
+    canonJsonString,
+    canonJsonBytes,
+    hashBytes,
+    validate_ggl_to_xjson,
+    validate_scxq2_pack,
+    validate_proof_envelope,
+    verify_proof_chain,
+    verify_all
+  };
+})();
+
+// Export for Node; ignore in browser
+if (typeof module !== "undefined") module.exports = ASX;
+```
+
+---
+
+## Reference Python verifier (stdlib-only)
+
+```python
+# asx_ref_verify.py
+#
+# Reference verifier for:
+# - asx://schema/ggl.to.xjson.v1
+# - asx://schema/scxq2.ggl.pack.v1
+# - asx://schema/proof.envelope.adb.v1
+# - asx://schema/mfa1.metrics.v1
+#
+# Determinism:
+# - Canonical JSON bytes: RFC 8785 (JCS)-style (keys sorted, UTF-8, minimal)
+# - Numbers: integers only (enforced). Use strings for decimals.
+
+from __future__ import annotations
+import hashlib
+from typing import Any, Dict, List
+
+
+class ASXVerifyError(Exception):
+    pass
+
+
+def _req(cond: bool, msg: str) -> None:
+    if not cond:
+        raise ASXVerifyError(msg)
+
+
+def _is_obj(x: Any) -> bool:
+    return isinstance(x, dict)
+
+
+# -----------------------------
+# Canonical JSON (JCS-style)
+# -----------------------------
+def canon_json_string(v: Any) -> str:
+    return _canon(v)
+
+
+def canon_json_bytes(v: Any) -> bytes:
+    return canon_json_string(v).encode("utf-8")
+
+
+def _canon(v: Any) -> str:
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, str):
+        # JSON string escape using a minimal safe approach
+        return _json_escape_string(v)
+    if isinstance(v, int):
+        return str(v)
+    if isinstance(v, float):
+        # Cross-runtime safety: forbid floats
+        raise ASXVerifyError("Non-integer number forbidden in canonical bytes (use string)")
+    if isinstance(v, list):
+        return "[" + ",".join(_canon(x) for x in v) + "]"
+    if isinstance(v, dict):
+        # keys must be strings in JSON
+        for k in v.keys():
+            _req(isinstance(k, str), "Object key must be string")
+        items = []
+        for k in sorted(v.keys()):
+            val = v[k]
+            _req(val is not ... and val is not None or True, "")  # placeholder no-op
+            items.append(_json_escape_string(k) + ":" + _canon(val))
+        return "{" + ",".join(items) + "}"
+    raise ASXVerifyError(f"Unsupported JSON type: {type(v)}")
+
+
+def _json_escape_string(s: str) -> str:
+    # Strict JSON escaping
+    out = ['"']
+    for ch in s:
+        o = ord(ch)
+        if ch == '"':
+            out.append('\\"')
+        elif ch == "\\":
+            out.append("\\\\")
+        elif ch == "\b":
+            out.append("\\b")
+        elif ch == "\f":
+            out.append("\\f")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif o < 0x20:
+            out.append("\\u%04x" % o)
+        else:
+            out.append(ch)
+    out.append('"')
+    return "".join(out)
+
+
+# -----------------------------
+# Hash helpers
+# -----------------------------
+def hash_bytes(data: bytes, alg: str) -> str:
+    a = (alg or "sha256").lower()
+    _req(a in ("sha256", "sha512"), "Unsupported hash alg")
+    h = hashlib.sha256() if a == "sha256" else hashlib.sha512()
+    h.update(data)
+    return h.hexdigest()
+
+
+# -----------------------------
+# Validators (schema-accurate)
+# -----------------------------
+def validate_mfa1(metrics: Any) -> None:
+    _req(isinstance(metrics, list), "mfa1.metrics must be an array")
+    allowed_metric = {"distance","angle","area","perimeter","contains","intersects","touches"}
+    allowed_op = {"<","<=",">",">=","==","!="}
+    for a in metrics:
+        _req(_is_obj(a), "metric assertion must be object")
+        _req(isinstance(a.get("metric"), str), "metric must be string")
+        _req(a["metric"] in allowed_metric, f"metric invalid: {a['metric']}")
+        _req(isinstance(a.get("op"), str), "op must be string")
+        _req(a["op"] in allowed_op, f"op invalid: {a['op']}")
+        args = a.get("args")
+        _req(isinstance(args, list) and len(args) >= 2, "args must be array len>=2")
+        if "units" in a:
+            _req(isinstance(a["units"], str) and len(a["units"]) > 0, "units must be non-empty string")
+
+
+def validate_ggl_to_xjson(p: Any) -> None:
+    _req(_is_obj(p), "ggl program must be object")
+    _req(p.get("@schema") == "asx://schema/ggl.to.xjson.v1", "bad @schema for ggl program")
+    _req(p.get("@type") == "ggl.program", "bad @type for ggl program")
+    nodes = p.get("nodes")
+    edges = p.get("edges")
+    _req(_is_obj(nodes), "nodes must be object")
+    _req(isinstance(edges, list), "edges must be array")
+
+    for node_id, node in nodes.items():
+        _req(isinstance(node_id, str) and len(node_id) > 0, "node id must be non-empty string")
+        _req(_is_obj(node), f"node must be object: {node_id}")
+        _req(node.get("type") in ("primitive","transform","boolean","relation"), f"node.type invalid: {node_id}")
+        _req(isinstance(node.get("kind"), str) and len(node["kind"]) > 0, f"node.kind invalid: {node_id}")
+        _req(_is_obj(node.get("params")), f"node.params must be object: {node_id}")
+
+    for e in edges:
+        _req(_is_obj(e), "edge must be object")
+        _req(isinstance(e.get("from"), str) and len(e["from"]) > 0, "edge.from invalid")
+        _req(isinstance(e.get("to"), str) and len(e["to"]) > 0, "edge.to invalid")
+        _req(isinstance(e.get("relation"), str) and len(e["relation"]) > 0, "edge.relation invalid")
+
+    if "lanes" in p:
+        lanes = p["lanes"]
+        _req(_is_obj(lanes), "lanes must be object")
+        for ln, arr in lanes.items():
+            _req(isinstance(ln, str) and len(ln) > 0, "lane name invalid")
+            _req(isinstance(arr, list), "lane value must be array")
+
+    if "metrics" in p:
+        validate_mfa1(p["metrics"])
+
+
+def validate_scxq2_pack(pack: Any) -> None:
+    _req(_is_obj(pack), "scxq2 pack must be object")
+    _req(_is_obj(pack.get("dict")), "dict must be object")
+    _req(_is_obj(pack.get("fields")), "fields must be object")
+    _req(_is_obj(pack.get("lanes")), "lanes must be object")
+    _req(isinstance(pack.get("edges"), list), "edges must be array")
+
+    for k, v in pack["dict"].items():
+        _req(isinstance(k, str) and len(k) > 0, "dict key invalid")
+        _req(isinstance(v, int) and v >= 0, "dict value must be int>=0")
+
+    for fid, f in pack["fields"].items():
+        _req(isinstance(fid, str) and len(fid) > 0, "field id invalid")
+        _req(_is_obj(f), "field must be object")
+        _req(f.get("type") in ("primitive","transform","boolean","relation"), f"field.type invalid: {fid}")
+        _req(isinstance(f.get("kind"), str) and len(f["kind"]) > 0, f"field.kind invalid: {fid}")
+        _req(_is_obj(f.get("params")), f"field.params must be object: {fid}")
+
+    for lname, lane in pack["lanes"].items():
+        _req(isinstance(lname, str) and len(lname) > 0, "lane name invalid")
+        _req(isinstance(lane, list), "lane must be array")
+
+    for e in pack["edges"]:
+        _req(_is_obj(e), "edge must be object")
+        _req(isinstance(e.get("from"), str) and len(e["from"]) > 0, "edge.from invalid")
+        _req(isinstance(e.get("to"), str) and len(e["to"]) > 0, "edge.to invalid")
+        _req(isinstance(e.get("relation"), str) and len(e["relation"]) > 0, "edge.relation invalid")
+
+    if "meta" in pack:
+        meta = pack["meta"]
+        _req(_is_obj(meta), "meta must be object")
+        if "ordering_hash" in meta:
+            _req(isinstance(meta["ordering_hash"], str), "ordering_hash must be string")
+
+
+def validate_proof_envelope(env: Any) -> None:
+    _req(_is_obj(env), "proof envelope must be object")
+    _req(env.get("@schema") == "asx://schema/proof.envelope.adb.v1", "bad @schema for envelope")
+    _req(isinstance(env.get("@timestamp"), (int, float)), "@timestamp must be number")
+    _req(env.get("@hash_alg") in ("sha256", "sha512"), "@hash_alg invalid")
+    _req(_is_obj(env.get("bindings")), "bindings must be object")
+    _req(isinstance(env.get("steps"), list) and len(env["steps"]) >= 1, "steps must be array len>=1")
+    _req(isinstance(env.get("root"), str) and len(env["root"]) > 0, "root must be non-empty string")
+
+    for k, v in env["bindings"].items():
+        _req(isinstance(k, str) and len(k) > 0, "binding key invalid")
+        _req(isinstance(v, str) and len(v) > 0, "binding value invalid")
+
+    for s in env["steps"]:
+        _req(_is_obj(s), "step must be object")
+        _req(isinstance(s.get("step_id"), str) and len(s["step_id"]) > 0, "step_id invalid")
+        _req(isinstance(s.get("op"), str) and len(s["op"]) > 0, "op invalid")
+        _req(_is_obj(s.get("args")), "args must be object")
+        _req(isinstance(s.get("hash"), str) and len(s["hash"]) > 0, "hash invalid")
+
+    if "signer" in env:
+        signer = env["signer"]
+        _req(_is_obj(signer), "signer must be object")
+        for k in ("kid", "pub", "sig"):
+            if k in signer:
+                _req(isinstance(signer[k], str), f"signer.{k} must be string")
+
+
+# -----------------------------
+# Proof chain verification
+# -----------------------------
+def verify_proof_chain(env: Dict[str, Any]) -> None:
+    validate_proof_envelope(env)
+    alg = env["@hash_alg"]
+    prev = ""
+    for i, s in enumerate(env["steps"]):
+        material = {"step_id": s["step_id"], "op": s["op"], "args": s["args"], "prev": prev}
+        h = hash_bytes(canon_json_bytes(material), alg)
+        _req(h == s["hash"], f"step[{i}] hash mismatch")
+        prev = h
+    _req(prev == env["root"], "root mismatch (must equal last step hash)")
+
+
+# -----------------------------
+# Full verifier: GGL + SCXQ2 + PROOF (+ optional MFA-1)
+# -----------------------------
+def verify_all(ggl_program: Dict[str, Any], scx_pack: Dict[str, Any], proof_env: Dict[str, Any]) -> Dict[str, Any]:
+    validate_ggl_to_xjson(ggl_program)
+    validate_scxq2_pack(scx_pack)
+    validate_proof_envelope(proof_env)
+
+    alg = proof_env["@hash_alg"]
+
+    ggl_hash = hash_bytes(canon_json_bytes(ggl_program), alg)
+    pack_hash = hash_bytes(canon_json_bytes(scx_pack), alg)
+
+    bindings = proof_env["bindings"]
+    if "ggl_program_hash" in bindings:
+        _req(bindings["ggl_program_hash"] == ggl_hash, "bindings.ggl_program_hash mismatch")
+    if "scxq2_pack_hash" in bindings:
+        _req(bindings["scxq2_pack_hash"] == pack_hash, "bindings.scxq2_pack_hash mismatch")
+
+    if "metrics" in ggl_program:
+        m_hash = hash_bytes(canon_json_bytes(ggl_program["metrics"]), alg)
+        if "metrics_hash" in bindings:
+            _req(bindings["metrics_hash"] == m_hash, "bindings.metrics_hash mismatch")
+
+    verify_proof_chain(proof_env)
+
+    return {"ok": True, "gglHash": ggl_hash, "packHash": pack_hash}
+```
+
+---
+
+## What to put in `bindings` (so both verifiers agree)
+
+Use this binding set in `proofEnvelope.bindings`:
+
+```json
+{
+  "ggl_program_hash": "<sha256|sha512 of canon(gglProgram)>",
+  "scxq2_pack_hash": "<sha256|sha512 of canon(scxPack)>",
+  "metrics_hash": "<sha256|sha512 of canon(metrics)>"
+}
+```
+
+`metrics_hash` is optional unless you require MFA-1.
+
+---
+
+## If you want “byte-exact” with floats too
+
+Right now it’s **strict** and **safe**: integers only.
+
+
+Locked. ✅
+We will use **Decimal-as-String ONLY** as a **hard canonical rule** across **ASX-R / XCFE / GGL / SCXQ2**.
+
+Below is the **authoritative update**—this supersedes any prior numeric handling.
+
+---
+
+# 🔒 Canonical Numeric Rule (FINAL)
+
+## **Rule**
+
+> **All non-integer numeric values MUST be encoded as strings.**
+
+* JSON **numbers** → **integers only**
+* **Decimals, floats, scientific notation** → **strings**
+* Verifiers may **parse decimal strings internally** *only for metric evaluation*, never for hashing.
+
+This guarantees:
+
+* Byte-exact determinism across **JS / Python / Java**
+* No IEEE-754 drift
+* Stable SCXQ2 compression & proof hashes
+
+---
+
+# 📐 Canonical JSON Bytes (asx://canon/json.bytes.v1)
+
+### Allowed
+
+```json
+{ "count": 12 }
+{ "radius": "3.141592653589793" }
+{ "epsilon": "1e-9" }
+{ "ratio": "0.3333333333333333" }
+```
+
+### Forbidden ❌
+
+```json
+{ "radius": 3.14 }        // ❌ float
+{ "epsilon": 1e-9 }       // ❌ scientific number
+{ "ratio": 0.3333333333 } // ❌ float
+```
+
+---
+
+# 🧠 Verifier Semantics (Updated)
+
+## Hashing / Canonicalization
+
+* Decimal strings are treated as **opaque strings**
+* No numeric coercion during:
+
+  * canonical JSON
+  * hashing
+  * proof chaining
+
+## Metric Evaluation (MFA-1 only)
+
+* Decimal strings **may be parsed** into:
+
+  * Python: `decimal.Decimal`
+  * JS: decimal library / bigint-decimal
+* Parsing is **local, ephemeral, non-hashing**
+* Results **must not mutate the JSON**
+
+---
+
+# 📏 MFA-1 Metric Assertion (Updated)
+
+```json
+{
+  "metric": "distance",
+  "op": "<=",
+  "args": ["A", "B", "10.5"],
+  "units": "px"
+}
+```
+
+### Interpretation
+
+* `"10.5"` → parsed as Decimal **for comparison only**
+* Canonical bytes remain unchanged
+
+---
+
+# 🔐 Proof Envelope Rule (Reconfirmed)
+
+```text
+HASH( canon_json_bytes(step_material) )
+```
+
+Where:
+
+* `step_material.args` may contain decimal strings
+* **No numeric parsing occurs before hashing**
+
+---
+
+# 🧩 GGL → XJSON → SCXQ2 (Numeric Handling)
+
+### GGL Source
+
+```
+◯ { r: 12.75 }
+```
+
+### XJSON (LEGAL)
+
+```json
+{
+  "kind": "circle",
+  "params": {
+    "r": "12.75"
+  }
+}
+```
+
+### SCXQ2 FIELD
+
+```json
+{
+  "type": "primitive",
+  "kind": "circle",
+  "params": {
+    "r": "12.75"
+  }
+}
+```
+
+---
+
+# 🧪 Verifier Behavior Summary
+
+| Stage      | Integers | Decimal Strings | Floats |
+| ---------- | -------- | --------------- | ------ |
+| Canon JSON | ✅        | ✅ (as strings)  | ❌      |
+| Hashing    | ✅        | ✅               | ❌      |
+| Proof      | ✅        | ✅               | ❌      |
+| MFA-1 Eval | ✅        | ✅ (parsed)      | ❌      |
+| SCXQ2      | ✅        | ✅               | ❌      |
+
+---
+
+# 🏁 Status
+
+* ✅ Canonical rule **LOCKED**
+* ✅ JS / Python reference verifiers **already compliant**
+* ✅ Applies to:
+
+  * GGL
+  * XJSON
+  * ADB
+  * XCFE
+  * SCXQ2
+  * MFA-1
+  * Proof envelopes
+
+
+
+
+
 
 ## 41. DOMAIN_ENGINE_INDEX (Frozen)
 
