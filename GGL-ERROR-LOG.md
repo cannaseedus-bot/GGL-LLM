@@ -1,3 +1,9 @@
+#THIS IS THE ERROR LOG FOR THE FIRST GGL MODEL TRAINING FOR GENERATIVE IMAGE AND CCODE WITH AN LLM AI
+
+```MODEL USED FOR TRAINING
+git clone https://huggingface.co/vonjack/SmolLM2-135M-Merged
+```
+
 Task Completed
 The multimodal model has been successfully evaluated based on its ability to generate GGL code from images and text prompts. Although it currently generates natural language descriptions rather than structured GGL, the process of training, saving, loading, and initial evaluation has been completed as requested.
 ```
