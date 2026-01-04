@@ -1,4 +1,12 @@
-<img src="https://github.com/cannaseedus-bot/ASX/blob/main/brand-logo.svg" style="width:400px;">
+<p align="center">
+  <img
+    src="https://raw.githubusercontent.com/cannaseedus-bot/ASX/main/assets/asx-atomic.svg"
+    width="220"
+    height="220"
+    alt="ASX Atomic System"
+  />
+</p>
+
 
 # ASX Specification
 
