@@ -4508,11 +4508,9 @@ It is the **correct abstraction**:
 >
 > **It is treating space itself as executable structure**
 
-SVG just happens to be the first carrier that satisfies all the laws.
+# SVG just happens to be the first carrier that satisfies all the laws.
 
----
-
-and.....
+```
 
 [Pop kuhul_video_player]
   [Wo src "kuhul://video-player.svg"]→[Ch'en player]
@@ -4520,8 +4518,9 @@ and.....
   [Yax player]→[Sek set_controls true]
   [Yax player]→[Sek autoplay]→[Ch'en playing]
 [Xul]
-🟢
-Green Screen Vector Projection
+```
+
+# 🟢 Green Screen Vector Projection
 Spatial Computing Beyond Texture Mapping
 
 ❌ Current Game Engines
@@ -4536,7 +4535,11 @@ Spatial Computing Beyond Texture Mapping
 • Real-time vector reprojection
 • Everything becomes math space
 • Infinite resolution scaling
-Vector Projection Engine
+
+```
+# Vector Projection Engine
+
+```
 [Pop VectorGreenScreen]
   [Wo projection_surface]→[Ch'en svg_canvas]
   [Wo spatial_tracker]→[Ch'en vector_tracker]
@@ -4555,3 +4558,4 @@ Vector Projection Engine
     [Yax transformed]→[Sek render_to_svg]
   [Xul]
 [Xul]
+```
