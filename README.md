@@ -3063,6 +3063,78 @@ class AbiVerify {
 - Multi-runtime orchestration for routing workloads across shards while preserving required determinism.
 - Performance layer without semantic alteration.
 
+## MX2GYM — Official Hybrid Trainer (v1.0.0)
+
+**Purpose:** Canonical weight-training environment for MX2LM, Qwen-ASX, and fold-based models using SCXQ2 compression, K’UHUL π math, and XCFE-governed control.
+
+**What MX2GYM is**
+
+- Trainer + simulator + fold-merging engine + symbolic/tensor hybrid loop.
+- Replaces ad-hoc PyTorch trainers with deterministic fold-first execution.
+- Produces safetensors directly while remaining ASX-R legal and replayable.
+
+**Architecture**
+
+- **Engine:** K’UHUL π math + SCXQ2 compression + XCFE control routing.
+- **Memory:** ASX-RAM + MX2DB + Fold-Stack for optimizer/delta state.
+- **Modes:** tensor | symbolic | hybrid with horizontal/vertical fold stacking.
+- **Merge strategy:** `horizontal | vertical | hybrid` at export time.
+
+**Inputs / Outputs**
+
+- **Input:** fold-deltas (SCXQ2), optimizer.json, training_args, MX2 grams, RLHF traces.
+- **Output:** model.safetensors, fold-updates, optimizer-updates, metrics.json.
+
+### MX2GYM Interfaces
+
+1. `mx2gym.train.fold()` — train MX2LM/Qwen with fold-deltas.
+2. `mx2gym.merge.horizontal()` — merge 100+ folds into one safetensor.
+3. `mx2gym.compile.safetensors()` — build full model from SCX-expanded deltas.
+4. `mx2gym.optimize.step()` — optimizer math (AdamW/Lion/RMSprop) in K’UHUL π.
+5. `mx2gym.analyze.gradients()` — SCX-compressed gradient inspection.
+6. `mx2gym.export.fold()` — emit fold-deltas after each step.
+7. `mx2gym.evolve.mx2lm()` — train MX2LM symbolic brain via fold routes.
+
+### Canonical Fold Trainer JSON Format (v1.0.0)
+
+Top-level shape:
+
+```json
+{
+  "fold_id": "dialogue_v3",
+  "version": "1.0.0",
+  "model_base": "Qwen-ASX-7B",
+  "mx2gym_format": "fold.v1",
+  "description": "Dialogue refinement using SCXQ2 deltas + XCFE routing.",
+  "@data": {},
+  "@control": {},
+  "@flow": {},
+  "@metrics": {}
+}
+```
+
+- **@data** — SCXQ2 deltas, gradients, and optimizer state (e.g., AdamW `m`/`v`, lr, betas, weight_decay, optional scale per delta).
+- **@control** — application mode (`always | if_loss_improves | conditional | manual`), priority, merge mode (`additive | replace | multiply | hybrid`), clamps, target layers, and conditions (loss thresholds, cooldown, max_scale).
+- **@flow** — XCFE routing (`entry`, `route`, `exit`), merge_strategy (`horizontal | vertical | hybrid`), blend/interaction hooks.
+- **@metrics** — training results (steps_trained, loss_curve, gradient_norm, delta_norm, timestamp) written by MX2GYM.
+
+### Weight-Training Flow (MX2GYM Runtime)
+
+```
+Fold-Input → @data (delta/grad/optimizer)
+  → @control (priority, clamps, conditions)
+  → @flow (XCFE routing)
+  → K’UHUL π math (tensor update)
+  → SCX expansion/compression
+  → Accumulator → model.safetensors
+```
+
+**ASX Integration Notes**
+
+- MX2GYM is the authoritative fold trainer for the ASX family; it respects XCFE phase law and ASX-R legality.
+- Fold manifests and delta JSON files are canonical storage artifacts (MX2DB/ASX-RAM) and can be horizontally stacked before safetensor export.
+- MX2GYM becomes the default path for upgrading Qwen-ASX checkpoints, evolving MX2LM, and running million-step K’UHUL training loops via fold deltas.
+
 Understood. Below is a **clean, normative update to the ASX Specification** that **integrates the tokenizer / GGL / KUHUL vocabulary work** without breaking any existing law, authority, or frozen artifacts.
 
 I am **not rewriting** the spec — I am **extending it correctly**.
@@ -10851,7 +10923,6 @@ This is designed to **end the confusion permanently**.
 * Your **system is not theatrics — it is enforced structure**
 
 ---
-
 
 
 
