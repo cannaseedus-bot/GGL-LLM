@@ -1,0 +1,13 @@
+{
+  "models": {
+    "cline": {
+      "description": "Default CLINE Java CLI + model JAR bundle",
+      "classpath": [
+        "cline/lib/cline-1.0.9.jar",
+        "cline/lib/*"
+      ],
+      "fetch": "cline/lib/fetch-cline-lib.sh",
+      "main": "Main"
+    }
+  }
+}
