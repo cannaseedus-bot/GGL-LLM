@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asx-r.org/schemas/ASX-R_STATE_TRANSITION.schema.json",
+  "title": "ASX-R State Transition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "prior_state",
+    "next_state",
+    "transition",
+    "phase",
+    "time",
+    "hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^ASX-R/\\d+\\.\\d+\\.\\d+$"
+    },
+    "prior_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state_id", "state", "schema_hash"],
+      "properties": {
+        "state_id": { "type": "string" },
+        "state": { "type": "object" },
+        "schema_hash": { "type": "string" }
+      }
+    },
+    "next_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state_id", "state", "schema_hash"],
+      "properties": {
+        "state_id": { "type": "string" },
+        "state": { "type": "object" },
+        "schema_hash": { "type": "string" }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transition_id", "declared", "inputs"],
+      "properties": {
+        "transition_id": { "type": "string" },
+        "declared": { "type": "string" },
+        "inputs": { "type": "object", "additionalProperties": false }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "entry", "exit"],
+      "properties": {
+        "name": { "type": "string" },
+        "entry": { "type": "string" },
+        "exit": { "type": "string" }
+      }
+    },
+    "time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["epoch", "tick"],
+      "properties": {
+        "epoch": { "type": "integer", "minimum": 0 },
+        "tick": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prior", "next", "transition"],
+      "properties": {
+        "prior": { "type": "string" },
+        "next": { "type": "string" },
+        "transition": { "type": "string" }
+      }
+    },
+    "proofs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "consistency": { "type": "string" },
+        "integrity": { "type": "string" }
+      }
+    }
+  }
+}
