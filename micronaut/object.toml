@@ -1,0 +1,22 @@
+# Micronaut SCO/1 object declaration
+id = "asx://micronaut/sco1"
+name = "Micronaut"
+version = "1.0.0"
+status = "sealed"
+format = "sco/1"
+entry = "micronaut.s7"
+semantics = "semantics.xjson"
+brains_dir = "brains"
+
+[io]
+chat = "io/chat.txt"
+stream = "io/stream.txt"
+snapshot_dir = "io/snapshot"
+
+[trace]
+trace = "trace/scxq2.trace"
+proof = "proof/scxq2.proof"
+
+[orchestrator]
+script = "micronaut.ps1"
+mode = "file-router"
