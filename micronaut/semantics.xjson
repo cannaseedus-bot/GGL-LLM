@@ -1,0 +1,8 @@
+{
+  "@schema": "asx://schema/kuhul-tsg/v1",
+  "@id": "asx://micronaut/semantics/kuhul-tsg",
+  "@type": "asx.semantics.kuhul-tsg",
+  "@version": "1.0.0",
+  "@status": "frozen",
+  "note": "Placeholder KUHUL-TSG schema for Micronaut object semantics."
+}
