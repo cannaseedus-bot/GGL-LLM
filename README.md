@@ -1153,7 +1153,7 @@ Below is a **drop-in, exact (no-float) DecimalString MFA-1 parser for Java** plu
 * computes hashes on the canonical bytes
 * checks them against `hashes.json`
 
-It’s dependency-free Java (no Jackson/Gson), designed to be embedded into your **cline jars** toolchain.
+It’s dependency-free Java (no Jackson/Gson), designed to be embedded into your **powershell jars** toolchain.
 
 ---
 
@@ -1840,7 +1840,7 @@ No rounding, no float, deterministic.
 
 ---
 
-## 6) How to wire into your cline jars
+## 6) How to wire into your powershell jars
 
 Put these in a `verify/` package inside your Java verifier jar:
 
@@ -1856,7 +1856,7 @@ If you want, I’ll also emit:
 * `Mfa1.java` (metric assertion evaluator using `DecimalString`)
 * `GglScxq2Verifier.java` skeleton that matches the pseudocode stage gates (decode → tokenize → validate → dispatch), calling this canonicalizer for proof hashing.
 
-Just say which jar is your “verifier jar” (the small one or the cline-1.0.9.jar wrapper).
+Just say which jar is your “verifier jar” (the small one or the powershell-1.0.9.jar wrapper).
 
 
 ---

@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# MX2CLI – wrapper around the CLINE Java CLI + model jars with pluggable model slots.
-# Uses the existing `cline/` sources (Main.java/ConformanceRunner.java/etc.) and lets
+# MX2CLI – wrapper around the PowerShell Java CLI + model jars with pluggable model slots.
+# Uses the existing `powershell/` sources (Main.java/ConformanceRunner.java/etc.) and lets
 # you register additional models via mx2cli-models.json.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC_DIR="${ROOT}/cline"
+SRC_DIR="${ROOT}/powershell"
 CLASS_DIR="${SRC_DIR}/.mx2cli/classes"
 MODELS_JSON="${ROOT}/mx2cli-models.json"
 
 usage() {
   cat <<'EOF'
 MX2CLI
-  build                 Compile the cline Java CLI sources into .mx2cli/classes
+  build                 Compile the powershell Java CLI sources into .mx2cli/classes
   canon [--model NAME] <test_vector_dir>
                         Run ConformanceRunner against a test vector directory
-                        (input.json + hashes.json). Defaults to --model cline.
+                        (input.json + hashes.json). Defaults to --model powershell.
   models                List registered models from mx2cli-models.json
 EOF
 }
@@ -41,7 +41,7 @@ ensure_classes() {
   fi
 
   if [[ "${rebuild}" == true ]]; then
-    echo "Compiling CLINE Java CLI sources into ${CLASS_DIR}..."
+    echo "Compiling PowerShell Java CLI sources into ${CLASS_DIR}..."
     javac -d "${CLASS_DIR}" "${SRC_DIR}"/*.java
   fi
 }
@@ -173,7 +173,7 @@ cmd_canon() {
   require_models_file
   ensure_classes
 
-  local model="cline"
+  local model="powershell"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --model)

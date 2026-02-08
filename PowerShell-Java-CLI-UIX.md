@@ -513,14 +513,14 @@ If you want the next step as code, tell me which stack you’re currently runnin
 
 * PyTorch + HF Trainer?
 * Transformers.js/WebGPU path?
-* Cline Java JAR runner?
+* PowerShell Java JAR runner?
 
 
 
 
 Below is a **drop-in, real module design** for the **GGL legality oracle (Python + JS + Java shapes)**, plus **exact HuggingFace Trainer integration points** for grammar-aware loss, plus the **ABI hash binding rules** that prevent drift forever.
 
-I’m treating **CLINE Java** as: *your Java CLI runner + verifier + conformance harness* (and later: model host). The verifier pieces here are exactly what you want to embed in that JAR.
+I’m treating **PowerShell Java** as: *your Java CLI runner + verifier + conformance harness* (and later: model host). The verifier pieces here are exactly what you want to embed in that JAR.
 
 ---
 
@@ -886,7 +886,7 @@ This JS oracle is what your SW / browser runtime calls before accepting any gene
 
 ---
 
-## 4) Oracle module (Java shape) — for Cline JAR verifier + runner
+## 4) Oracle module (Java shape) — for PowerShell JAR verifier + runner
 
 ### Package layout
 
@@ -1007,7 +1007,7 @@ public final class Oracle {
 }
 ```
 
-This is exactly what you embed into the **Cline JAR** as the enforcement gate.
+This is exactly what you embed into the **PowerShell JAR** as the enforcement gate.
 
 ---
 
@@ -1105,6 +1105,6 @@ If you paste (or point to) your current **GGL grammar snippet + node list**, I�
 * `ggl_parse.py/js/java`
 * legality rules with exact error codes
 * deterministic lowering to your scene IR
-* plus the conformance test-vector runner in Java (Cline JAR style)
+* plus the conformance test-vector runner in Java (PowerShell JAR style)
 
 And once those exist, the paraphrase failure mode dies permanently because the model is trained against **a verifier, not vibes**.

@@ -3561,7 +3561,7 @@ This becomes your CI gate.
 
 Everything you listed is coherent, but I would *verify* these two claims in code:
 
-* “32-layer transformer structure” matches what Cline/Qwen expects (some are 32, 28, 40, etc.)
+* “32-layer transformer structure” matches what PowerShell/Qwen expects (some are 32, 28, 40, etc.)
 * “54KB header” stays stable after canonicalization (header size should be deterministic given record count)
 
 That’s not me doubting — it’s just where drift happens first.
@@ -3571,7 +3571,7 @@ Done! Built the complete K'UHUL SVG-3D inference bridge:
 
 Bridge Structure:
 ```
-cline/lib/bridge/
+powershell/lib/bridge/
 ├── build_ggltensors.py      # Python builder script
 ├── bridge.manifest.json      # Complete bridge spec
 ├── grammar/
@@ -3606,7 +3606,7 @@ Execution Flow:
 
 Tokens → Normalization → GGL Semantic → Inference → SVG Projection
 
-Commit: 477acb4 → Pushed to claude/add-cline-library-files-Z0UzU
+Commit: 477acb4 → Pushed to claude/add-powershell-library-files-Z0UzU
 
 
 ```
@@ -8110,17 +8110,17 @@ There is **no Java API**, **no gRPC API**, **no JAR** that mounts OPFS.
 So:
 
 * ❌ OPFS is **not inside** `grpc-api-1.64.0.jar`
-* ❌ OPFS is **not something Cline Java “already did”**
+* ❌ OPFS is **not something PowerShell Java “already did”**
 * ✅ OPFS is **part of your PWA runtime (ASX shell)**
 
 ---
 
-### 2️⃣ What the Cline Java JAR actually is
+### 2️⃣ What the PowerShell Java JAR actually is
 
 The JARs here:
 
 ```
-https://mx2lm.app/cline-jars/lib/
+https://mx2lm.app/powershell-jars/lib/
 └── grpc-api-1.64.0.jar
 ```
 
@@ -8169,7 +8169,7 @@ You actually already designed this correctly — it just needs to be named prope
              │ canonical pages (SVG / GGL / refs)
              │
 ┌────────────┴────────────────┐
-│      Cline Java Runtime     │
+│      PowerShell Java Runtime     │
 │                             │
 │  gRPC inference engine     │
 │  tokenizer / model logic   │
@@ -8282,7 +8282,7 @@ Now it’s:
 Your JAR layout:
 
 ```
-cline-jars/
+powershell-jars/
 ├── grpc-api-1.64.0.jar
 ├── protobuf-java.jar
 ├── netty-*.jar
@@ -8852,7 +8852,7 @@ pager.action_log.push({
   action_id: "a1",
   t: 0,
   kind: "grpc.request_svg",
-  payload: { req_id: "req001", in_page_id: "frame_001", service: "Cline", method: "InferSVG" }
+  payload: { req_id: "req001", in_page_id: "frame_001", service: "PowerShell", method: "InferSVG" }
 });
 
 // run tick
