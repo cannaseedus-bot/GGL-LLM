@@ -1,0 +1,22 @@
+{
+  "@type": "ggl.bridge.verify.v1",
+  "ok": false,
+  "abi_hash": "",
+  "manifest_hash": "ef255c575ef2c307fc5950ef2c017b3a74e34cd17b019ba16ab8959265a425f5",
+  "tensor_index_hash": "9d3beeee6eba08d747833d2bd3d3ecb491614f15483ebc2febe306aa11eb8868",
+  "ggltensors_header_hash": "",
+  "files": {
+    "grammar/vocab.ggl.json": "1945b172d08bea55d21c00f8857e3f243a7cba13fbad4702c79380631a2d656e",
+    "grammar/tokenizer.schema.ggl.json": "1cdb0dceccf68c911eafb34c4494b76cecf54a3ff199fc7c2486975b7ce7ae3e",
+    "grammar/merges.ggl.txt": "5edfc51f23f01d54f6adde6b7268525b33b4bf709142bf1fbcf917e1524f98fa",
+    "grammar/tokens.map.ggl.json": "b6380b9f90a5125e7007d071477248c7b739aaae57e0b0dc95346d86db1b2fa7",
+    "policy/generation.ggl.json": "ad55b917a6340f737b2f35fe666c477addcf18eede76ce391e61bbae22a6cf76",
+    "policy/model_constraints.ggl.json": "841e9191dc3bb88fb862a613dfc7b369f9d07f6235011f082830870da6871594",
+    "templates/chat_template.ggl.svg": "0a4972352d85d1865af0f7c67a29e133ff14ef646796f0c6f6e301aa906cb388",
+    "templates/chat_template.compiled.json": "e80e0a2e03440accf07ab4c3586d014151a86fb0cb29f5f10b315651b2fdb3ee"
+  },
+  "errors": [
+    "Invalid ggltensors: index out of range"
+  ],
+  "verified_at": "2026-01-05T03:51:38.809724Z"
+}

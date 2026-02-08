@@ -1,0 +1,221 @@
+{
+  "$schema": "ggl://schema/conformance.v1",
+  "@id": "kuhul://conformance/bridge.v1",
+  "@version": "1.0.0",
+  "@description": "Golden conformance vectors for cross-language ABI verification",
+
+  "canonical_json": {
+    "@description": "RFC 8785 (JCS) canonicalization test vectors",
+    "vectors": [
+      {
+        "input": {"b": 2, "a": 1},
+        "expected": "{\"a\":1,\"b\":2}",
+        "description": "Object key sorting"
+      },
+      {
+        "input": [3, 1, 2],
+        "expected": "[3,1,2]",
+        "description": "Array order preserved"
+      },
+      {
+        "input": {"x": 1.0},
+        "expected": "{\"x\":1}",
+        "description": "Float to int normalization"
+      },
+      {
+        "input": {"s": "hello\nworld"},
+        "expected": "{\"s\":\"hello\\nworld\"}",
+        "description": "String escaping"
+      },
+      {
+        "input": null,
+        "expected": "null",
+        "description": "Null value"
+      },
+      {
+        "input": true,
+        "expected": "true",
+        "description": "Boolean true"
+      },
+      {
+        "input": {"nested": {"z": 3, "a": 1}},
+        "expected": "{\"nested\":{\"a\":1,\"z\":3}}",
+        "description": "Nested object sorting"
+      }
+    ]
+  },
+
+  "blake2b_256": {
+    "@description": "BLAKE2b-256 hash test vectors",
+    "vectors": [
+      {
+        "input_hex": "",
+        "expected": "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8",
+        "description": "Empty input"
+      },
+      {
+        "input_utf8": "GGL-BRIDGE-ABI",
+        "expected": "a7f0d6b7c8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5",
+        "description": "Bridge prefix (example - compute actual)"
+      },
+      {
+        "input_utf8": "GGLT",
+        "expected": "compute_actual_hash_here",
+        "description": "Magic bytes"
+      }
+    ]
+  },
+
+  "ggl_tokens": {
+    "@description": "GGL token encoding vectors",
+    "vectors": [
+      {
+        "glyph": "◯",
+        "token_id": 10,
+        "category": "primitive",
+        "svg3d_equivalent": "create_sphere"
+      },
+      {
+        "glyph": "□",
+        "token_id": 11,
+        "category": "primitive",
+        "svg3d_equivalent": "create_cube"
+      },
+      {
+        "glyph": "⍯",
+        "token_id": 100,
+        "category": "boolean",
+        "svg3d_equivalent": "boolean_union"
+      },
+      {
+        "operator": "(⟲)",
+        "token_id": 204,
+        "category": "svg3d_generator",
+        "ggl_equivalent": "spherical_grid"
+      }
+    ]
+  },
+
+  "kuhul_phases": {
+    "@description": "K'UHUL phase encoding vectors",
+    "vectors": [
+      {
+        "phase": "[Pop]",
+        "token_id": 300,
+        "action": "existence",
+        "opens_scope": true
+      },
+      {
+        "phase": "[Wo]",
+        "token_id": 301,
+        "action": "source",
+        "binds": "identity"
+      },
+      {
+        "phase": "[Ch'en]",
+        "token_id": 303,
+        "action": "completion",
+        "yields": "state"
+      },
+      {
+        "phase": "[Xul]",
+        "token_id": 305,
+        "action": "closure",
+        "closes_scope": true
+      }
+    ]
+  },
+
+  "chat_template": {
+    "@description": "Chat template rendering vectors",
+    "vectors": [
+      {
+        "input": {
+          "messages": [
+            {"role": "user", "content": "Hello"}
+          ],
+          "add_generation_prompt": true
+        },
+        "expected": "<|kuhul|>[Pop user]\n  [Wo query]→[Ch'en \"Hello\"]\n[Xul]\n<|kuhul|>[Pop assistant]\n  [Wo response]→",
+        "description": "Single user message with generation prompt"
+      },
+      {
+        "input": {
+          "messages": [
+            {"role": "system", "content": "You are helpful."},
+            {"role": "user", "content": "Hi"}
+          ],
+          "add_generation_prompt": true
+        },
+        "expected": "<|kuhul|>[Pop system]\n  [Wo content]→[Ch'en \"You are helpful.\"]\n[Xul]\n<|kuhul|>[Pop user]\n  [Wo query]→[Ch'en \"Hi\"]\n[Xul]\n<|kuhul|>[Pop assistant]\n  [Wo response]→",
+        "description": "System + user messages"
+      }
+    ]
+  },
+
+  "ggltensor_header": {
+    "@description": "GGLT header parsing vectors",
+    "magic": "GGLT",
+    "version": 1,
+    "flags": 0,
+    "header_layout": {
+      "offset_0": "magic (4 bytes)",
+      "offset_4": "version (u16 LE)",
+      "offset_6": "flags (u16 LE)",
+      "offset_8": "tensor_count (u32 LE)",
+      "offset_12": "header_size (u32 LE)",
+      "offset_16": "tensor_records..."
+    },
+    "tensor_record_layout": {
+      "name_len": "u16 LE",
+      "name": "UTF-8 bytes",
+      "dtype": "u8 enum",
+      "role": "u8 enum",
+      "rank": "u16 LE",
+      "shape": "u32[rank] LE",
+      "offset": "u64 LE",
+      "size": "u64 LE",
+      "hash": "32 bytes BLAKE2b-256"
+    }
+  },
+
+  "abi_hash": {
+    "@description": "ABI hash construction formula",
+    "formula": "BLAKE2b-256(prefix + canon_manifest + file_hashes + canon_tensor_index + header_hash)",
+    "prefix": "GGL-BRIDGE-ABI\\0",
+    "file_order": "lexicographic on POSIX path",
+    "separator": "\\0 (null byte)",
+    "example": {
+      "description": "Example ABI hash computation",
+      "steps": [
+        "1. parts = ['GGL-BRIDGE-ABI\\0']",
+        "2. parts.append(canonical_json(manifest))",
+        "3. for path in sorted(files): parts.append(path + '\\0' + blake256(content))",
+        "4. parts.append(canonical_json(tensor_index))",
+        "5. parts.append(blake256(gglt_header))",
+        "6. abi_hash = blake256(concat(parts))"
+      ]
+    }
+  },
+
+  "cross_language_parity": {
+    "@description": "All implementations must produce identical output",
+    "implementations": ["Python", "JavaScript", "Java"],
+    "requirements": [
+      "Identical canonical JSON output",
+      "Identical BLAKE2b-256 hashes",
+      "Identical ABI hash for same input",
+      "Identical verification result structure"
+    ],
+    "verification_output_schema": {
+      "@type": "ggl.bridge.verify.v1",
+      "ok": "boolean",
+      "abi_hash": "blake2b-256:hex",
+      "manifest_hash": "hex",
+      "tensor_index_hash": "hex",
+      "ggltensors_header_hash": "hex",
+      "files": "map<path, hex>",
+      "errors": "array<string>"
+    }
+  }
+}
