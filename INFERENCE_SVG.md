@@ -4156,7 +4156,7 @@ The SVG **is the contract**.
 
 ---
 
-### 4. **This is why “Java Cline using SVG” works so well**
+### 4. **This is why “Java PowerShell using SVG” works so well**
 
 Because:
 
