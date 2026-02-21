@@ -2,7 +2,54 @@
   "@schema": "asx://schema/kuhul-tsg/v1",
   "@id": "asx://micronaut/semantics/kuhul-tsg",
   "@type": "asx.semantics.kuhul-tsg",
-  "@version": "1.0.0",
+  "@version": "1.1.0",
   "@status": "frozen",
-  "note": "Placeholder KUHUL-TSG schema for Micronaut object semantics."
+  "note": "Micronaut MoE semantics contract with domain/tool/coding/math experts and topology laws.",
+  "identity": {
+    "equivalence": [
+      "micronaut",
+      "agent",
+      "semantics",
+      "opcodes",
+      "crowns",
+      "personalities",
+      "policies"
+    ]
+  },
+  "moe": {
+    "enabled": true,
+    "experts": [
+      { "id": "domain", "role": "Domain expert", "specializes": ["spec law", "runtime constraints"] },
+      { "id": "tools", "role": "Tool expert", "specializes": ["adapters", "io", "orchestration"] },
+      { "id": "coding", "role": "Coding expert", "specializes": ["implementation", "refactors", "tests"] },
+      { "id": "math", "role": "Math expert", "specializes": ["proofs", "scoring", "optimization"] }
+    ],
+    "router": {
+      "mode": "policy-gated",
+      "max_active_experts": 2,
+      "selection_inputs": ["phase", "opcode", "policy", "prompt_intent", "trace_context"]
+    }
+  },
+  "extensions": {
+    "config_formats": ["toml", "yaml"],
+    "training_layers": {
+      "supported": true,
+      "kinds": ["adapter", "lora", "policy-head", "routing-head"]
+    },
+    "brainstorming_augment": {
+      "enabled": true,
+      "requires_policy_crown": true,
+      "trace_label": "augment.brainstorm"
+    },
+    "prompt_management": {
+      "schema": "asx://schema/micronaut.prompt.manager/v1",
+      "required_fields": ["intent", "constraints", "tools", "safety", "exit_criteria"]
+    }
+  },
+  "topology_schema_laws": {
+    "deterministic_routing": true,
+    "phase_anchor_required": true,
+    "trace_hash_binding": true,
+    "no_hidden_tool_invocation": true
+  }
 }

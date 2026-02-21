@@ -13,12 +13,15 @@ Defines a sealed SCO/1-style "Micronaut" object package: object metadata, semant
   - Declared SCO/1 entry object (currently a placeholder scaffold).
 - `micronaut/semantics.xjson`
   - Semantic schema/contract reference for the object.
+- `micronaut/SEMANTICS.md`
+  - Human-readable MoE semantics, expert classes, and extension profile guidance.
 - `micronaut/micronaut.ps1`
   - File-router orchestration script entry.
 - Supporting runtime assets:
   - `micronaut/brains/*.json`
   - `micronaut/io/*`
   - `micronaut/trace/*`, `micronaut/proof/*`
+  - `micronaut/extensions/*` (MoE-style TOML/YAML profiles for experts, training layers, and topology laws)
 
 ## 4) Relationship to other folders
 - Complements oracle and bridge work by representing a packaged runtime object with traces/proofs rather than a parser-only library.
