@@ -9,3 +9,5 @@
 
 - [GGL-LLM docs](./ggl-llm/README.md)
 - [Extended language specs](./language-specs/README.md)
+
+- [Micronaut agent semantics profile](../micronaut/SEMANTICS.md)
