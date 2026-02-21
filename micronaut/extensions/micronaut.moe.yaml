@@ -1,0 +1,31 @@
+# Micronaut MoE extension profile (Gemini-style layered config)
+profile: micronaut-moe-v1
+status: draft
+semantics: ../semantics.xjson
+
+experts:
+  active: [domain, tools, coding, math]
+  max_active: 2
+  router: policy-gated
+
+training_layers:
+  enabled: true
+  layers: [adapter, lora, policy-head, routing-head]
+
+brainstorming:
+  enabled: true
+  policy_crown_required: true
+  trace_label: augment.brainstorm
+
+prompt_management:
+  intent_required: true
+  constraints_required: true
+  tools_required: true
+  safety_required: true
+  exit_criteria_required: true
+
+topology_schema_laws:
+  deterministic_routing: true
+  phase_anchor_required: true
+  trace_hash_binding: true
+  no_hidden_tool_invocation: true

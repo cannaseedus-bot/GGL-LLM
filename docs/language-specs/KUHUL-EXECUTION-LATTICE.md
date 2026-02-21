@@ -64,3 +64,17 @@ A compliant adapter exposes:
 - `kill(handle) -> boolean`
 
 Where `execute` MUST emit enough structured trace to replay phase transitions, opcode calls, policy decisions, and gram decoding checkpoints.
+
+
+## Micronaut MoE specialization law
+
+Micronaut deployments MAY express a policy-gated MoE layer where expert classes are explicit and deterministic:
+
+- domain experts
+- tool experts
+- coding experts
+- math experts
+
+MoE selection MUST remain bounded by phase + policy legality and MUST emit trace checkpoints for expert routing decisions.
+
+Gemini-style TOML/YAML extension profiles are allowed as configuration carriers, but they do not override KUHUL phase authority or topology schema laws.
